@@ -1,0 +1,3 @@
+This repository is my code to generate pdf ready to print cards with standard size
+
+it is simplified tool based in pnp tool application, but due to pnp tool is only for Windows and it is very buggy I decided to create my own script in dart which can run in all platforms. In a future, I'll release a flutter multiplatform app with a UI to print with in any paper size with different card size (It is under development).
