@@ -1,9 +1,10 @@
-name: Build Binaries
+name: Build PnP Tool
 
 on:
   push:
     branches:
       - main
+  pull_request:
 
 jobs:
   build:
@@ -13,11 +14,18 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
-    - uses: actions/checkout@v3
+    - name: Check out code
+      uses: actions/checkout@v3
+      
     - name: Set up Dart
       uses: dart-lang/setup-dart@v1
+
+    - name: Install dependencies
+      run: dart pub get
+
     - name: Build executable
       run: dart compile exe bin/pnp_tool.dart -o pnp_card_${{ matrix.os }}
+
     - name: Upload artifact
       uses: actions/upload-artifact@v3
       with:
