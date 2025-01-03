@@ -7,9 +7,9 @@ cat <<EOF > README.md
 # Print & Play Card Tool
 
 ## Download the latest version
-- [Linux](https://github.com/${{ github.repository }}/releases/download/$TAG_NAME/pnp_card_ubuntu-latest)
-- [Windows](https://github.com/${{ github.repository }}/releases/download/$TAG_NAME/pnp_card_windows-latest)
-- [macOS](https://github.com/${{ github.repository }}/releases/download/$TAG_NAME/pnp_card_macos-latest)
+- [Linux](https://github.com/${REPO}/releases/download/${TAG_NAME}/pnp_card_ubuntu-latest)
+- [Windows](https://github.com/${REPO}/releases/download/${TAG_NAME}/pnp_card_windows-latest)
+- [macOS](https://github.com/${REPO}/releases/download/${TAG_NAME}/pnp_card_macos-latest)
 
 ## Usage
 
