@@ -18,7 +18,7 @@ jobs:
       
     - name: Set up Dart
       uses: dart-lang/setup-dart@v1
-      
+
     - name: Install dependencies
       run: dart pub get
 
@@ -85,6 +85,7 @@ jobs:
       run: |
         git config --global user.name "github-actions"
         git config --global user.email "github-actions@github.com"
+        git checkout main
         git add README.md
         git commit -m "Update README with download links for ${{ github.ref_name }}"
         git push
