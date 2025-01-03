@@ -1,10 +1,9 @@
-name: Build PnP Tool
+name: Build and Release Binaries
 
 on:
   push:
-    branches:
-      - main
-  pull_request:
+    tags:
+      - 'v*' # Actúa solo en tags que comiencen con "v"
 
 jobs:
   build:
@@ -19,15 +18,73 @@ jobs:
       
     - name: Set up Dart
       uses: dart-lang/setup-dart@v1
-
+      
     - name: Install dependencies
       run: dart pub get
 
     - name: Build executable
       run: dart compile exe bin/pnp_tool.dart -o pnp_card_${{ matrix.os }}
 
-    - name: Upload artifact
+    - name: Upload binary
       uses: actions/upload-artifact@v3
       with:
         name: pnp_card_${{ matrix.os }}
         path: pnp_card_${{ matrix.os }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v3
+
+    - name: Download binaries
+      uses: actions/download-artifact@v3
+      with:
+        name: pnp_card_ubuntu-latest
+        path: ./bin/linux/
+    - name: Download Windows binary
+      uses: actions/download-artifact@v3
+      with:
+        name: pnp_card_windows-latest
+        path: ./bin/windows/
+    - name: Download macOS binary
+      uses: actions/download-artifact@v3
+      with:
+        name: pnp_card_macos-latest
+        path: ./bin/macos/
+
+    - name: Create a release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          ./bin/linux/pnp_card_ubuntu-latest
+          ./bin/windows/pnp_card_windows-latest
+          ./bin/macos/pnp_card_macos-latest
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Update README
+      run: |
+        TAG_NAME=${{ github.ref_name }}
+        cat <<EOF > README.md
+        # PnP Tool
+
+        ## Download the latest version
+        - [Linux](https://github.com/${{ github.repository }}/releases/download/$TAG_NAME/pnp_card_ubuntu-latest)
+        - [Windows](https://github.com/${{ github.repository }}/releases/download/$TAG_NAME/pnp_card_windows-latest)
+        - [macOS](https://github.com/${{ github.repository }}/releases/download/$TAG_NAME/pnp_card_macos-latest)
+
+        ## Usage
+        ...
+
+        EOF
+
+    - name: Commit and push README update
+      run: |
+        git config --global user.name "github-actions"
+        git config --global user.email "github-actions@github.com"
+        git add README.md
+        git commit -m "Update README with download links for ${{ github.ref_name }}"
+        git push
