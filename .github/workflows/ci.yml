@@ -66,7 +66,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Update README
-      run: bash update_release.sh ${{ github.ref_name }}
+      run: bash update_release.sh ${{ github.repository }} ${{ github.ref_name }}
 
     - name: Debug branches
       run: git branch -a

@@ -1,6 +1,7 @@
 #!/bin/bash
 
-TAG_NAME=$1
+REPO=$1
+TAG_NAME=$2
 
 cat <<EOF > README.md
 # Print & Play Card Tool
