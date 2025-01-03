@@ -81,10 +81,14 @@ jobs:
 
         EOF
 
+    - name: Debug branches
+      run: git branch -a
+
     - name: Commit and push README update
       run: |
         git config --global user.name "github-actions"
         git config --global user.email "github-actions@github.com"
+        git fetch origin main
         git checkout main
         git add README.md
         git commit -m "Update README with download links for ${{ github.ref_name }}"
