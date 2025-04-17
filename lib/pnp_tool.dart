@@ -179,7 +179,7 @@ class PnPGenerator {
                     height: logoHeight * PdfPageFormat.mm,
                   ),
                   pw.Text(
-                    'Card Print & Play by careuno',
+                    'Cards Print & Play',
                     style: pw.TextStyle(
                       fontSize: 7,
                     ),
@@ -217,7 +217,6 @@ class PnPGenerator {
     final frontFiles = <String, String>{};
     final backFiles = <String, String>{};
 
-    // Clasifica archivos en front y back
     await for (final entry in directory.list()) {
       if (entry is File) {
         final fileName =
@@ -230,14 +229,12 @@ class PnPGenerator {
       }
     }
 
-    // Comprobación 1: Si hay un back sin su correspondiente front
     for (final backName in backFiles.keys) {
       if (!frontFiles.containsKey(backName)) {
         throw Exception('font side not found for: ${backName}_back');
       }
     }
 
-    // Procesa las cartas en orden numérico o alfabético
     final sortedFrontKeys = frontFiles.keys.toList()..sort();
 
     for (var i = 0; i < sortedFrontKeys.length; i++) {
@@ -247,7 +244,6 @@ class PnPGenerator {
           ? backFiles[frontName]!
           : globalBackPath;
 
-      // Comprobación 2: Si un front no tiene back y tampoco global_back
       if (backFilePath == null) {
         throw Exception(
             'back side not found for: ${frontName}_front and global_back is not available.');
@@ -314,7 +310,6 @@ class PnPGenerator {
     return cutLines;
   }
 
-  // we have an issue drawing the cut lines with drawLine method so we use a container instead
   static pw.Widget _getCutLine({
     required double width,
     required double height,
