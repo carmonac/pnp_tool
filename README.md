@@ -5,6 +5,14 @@
 - [Windows](https://github.com/carmonac/pnp_tool/releases/download/v0.0.10/pnp_card_windows-latest)
 - [macOS](https://github.com/carmonac/pnp_tool/releases/download/v0.0.10/pnp_card_macos-latest)
 
+### Mac users
+
+it is possible you have to run the next command just immedietly after downloading the binary
+```
+chmod +x pnp_card_macos-latest
+xattr -d com.apple.quarantine ./pnp_card_macos-latest
+```
+
 ## Usage
 
 To run the program, you need to provide two arguments:
