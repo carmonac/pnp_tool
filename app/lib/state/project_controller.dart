@@ -128,23 +128,33 @@ class ProjectController extends ChangeNotifier {
   }
 
   /// Imports a folder laid out with the `_front`/`_back`/`global_back`
-  /// naming convention, replacing nothing: cards are appended and the global
-  /// back is set only if the project doesn't have one yet.
+  /// naming convention. Cards are appended; a discovered global back is
+  /// added to the project's global back list unless already present.
   Future<void> importFolder(String dir) async {
     final result = await discoverCards(dir, requireBacks: false);
     if (result.cards.isEmpty && result.globalBackRef == null) return;
-    _mutate((project) => project.copyWith(
-          cards: [
-            ...project.cards,
-            for (final card in result.cards)
-              CardItem(
-                id: _newId(card.id),
-                frontRef: card.frontRef,
-                backRef: card.backRef,
-              ),
-          ],
-          globalBackRef: project.globalBackRef ?? result.globalBackRef,
-        ));
+    _mutate((project) {
+      final discoveredBack = result.globalBackRef;
+      final alreadyListed = discoveredBack == null ||
+          project.globalBacks.any((b) => b.ref == discoveredBack);
+      return project.copyWith(
+        cards: [
+          ...project.cards,
+          for (final card in result.cards)
+            CardItem(
+              id: _newId(card.id),
+              frontRef: card.frontRef,
+              backRef: card.backRef,
+            ),
+        ],
+        globalBacks: alreadyListed
+            ? null
+            : [
+                ...project.globalBacks,
+                GlobalBack(id: _newId('global'), ref: discoveredBack),
+              ],
+      );
+    });
   }
 
   void setCardBack(String cardId, String? backPath) {
@@ -178,8 +188,38 @@ class ProjectController extends ChangeNotifier {
     });
   }
 
-  void setGlobalBack(String? path) {
-    _mutate((project) => project.copyWith(globalBackRef: path));
+  void addGlobalBack(String path) {
+    _mutate((project) => project.copyWith(globalBacks: [
+          ...project.globalBacks,
+          GlobalBack(id: _newId('global'), ref: path),
+        ]));
+  }
+
+  /// Removes a global back; cards that pointed to it fall back to the
+  /// default (first) global back.
+  void removeGlobalBack(String globalBackId) {
+    _mutate((project) => project.copyWith(
+          globalBacks: project.globalBacks
+              .where((b) => b.id != globalBackId)
+              .toList(),
+          cards: [
+            for (final card in project.cards)
+              card.globalBackId == globalBackId
+                  ? card.copyWith(globalBackId: null)
+                  : card,
+          ],
+        ));
+  }
+
+  /// Points a card at a specific global back (null = default/first).
+  /// Clears any per-card back so the choice takes effect.
+  void setCardGlobalBack(String cardId, String? globalBackId) {
+    _mutate((project) => project.copyWith(cards: [
+          for (final card in project.cards)
+            card.id == cardId
+                ? card.copyWith(backRef: null, globalBackId: globalBackId)
+                : card,
+        ]));
   }
 
   // Freeform mode ---------------------------------------------------------

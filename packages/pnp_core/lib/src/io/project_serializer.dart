@@ -43,12 +43,14 @@ class ProjectSerializer {
                 'id': card.id,
                 'front': _relativize(card.frontRef),
                 'back': card.backRef == null ? null : _relativize(card.backRef!),
+                'globalBackId': card.globalBackId,
                 'count': card.count,
               },
           ],
-          'globalBack': project.globalBackRef == null
-              ? null
-              : _relativize(project.globalBackRef!),
+          'globalBacks': [
+            for (final back in project.globalBacks)
+              {'id': back.id, 'image': _relativize(back.ref)},
+          ],
         },
         if (project.mode == ProjectMode.freeform)
           'pages': [
@@ -101,12 +103,11 @@ class ProjectSerializer {
             id: item['id'] as String,
             frontRef: _resolve(item['front'] as String),
             backRef: item['back'] == null ? null : _resolve(item['back'] as String),
+            globalBackId: item['globalBackId'] as String?,
             count: item['count'] as int? ?? 1,
           ),
       ],
-      globalBackRef: json['globalBack'] == null
-          ? null
-          : _resolve(json['globalBack'] as String),
+      globalBacks: _globalBacksFromJson(json),
       pages: [
         for (final page in json['pages'] as List? ?? const [])
           FreePage(items: [
@@ -126,6 +127,26 @@ class ProjectSerializer {
           if (mode == ProjectMode.freeform) const FreePage(),
       ],
     );
+  }
+
+  /// Reads the v2 `globalBacks` list, falling back to the v1 single
+  /// `globalBack` string.
+  List<GlobalBack> _globalBacksFromJson(Map<String, dynamic> json) {
+    final list = json['globalBacks'] as List?;
+    if (list != null) {
+      return [
+        for (final item in list)
+          GlobalBack(
+            id: item['id'] as String,
+            ref: _resolve(item['image'] as String),
+          ),
+      ];
+    }
+    final legacy = json['globalBack'] as String?;
+    if (legacy != null) {
+      return [GlobalBack(id: 'global', ref: _resolve(legacy))];
+    }
+    return const [];
   }
 
   Map<String, dynamic> _sizeToJson(SizeMm size, String presetName) =>

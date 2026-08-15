@@ -15,7 +15,7 @@ void main() {
       mode: ProjectMode.grid,
       pageSize: PagePreset.a4.size!,
       cards: discovery.cards,
-      globalBackRef: discovery.globalBackRef,
+      globalBacks: discovery.globalBackRef == null ? const [] : [GlobalBack(id: 'global', ref: discovery.globalBackRef!)],
     );
 
     final bytes = await PdfGenerator(
@@ -41,7 +41,7 @@ void main() {
       mode: ProjectMode.grid,
       pageSize: PagePreset.a4.size!,
       cards: discovery.cards,
-      globalBackRef: discovery.globalBackRef,
+      globalBacks: discovery.globalBackRef == null ? const [] : [GlobalBack(id: 'global', ref: discovery.globalBackRef!)],
     );
 
     final seen = <int>[];

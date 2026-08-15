@@ -15,8 +15,12 @@ void main() {
       cards: [
         CardItem(id: 'a', frontRef: '/img/a_front.png', count: 2),
         CardItem(id: 'b', frontRef: '/img/b_front.png', backRef: '/img/b_back.png'),
+        CardItem(id: 'c', frontRef: '/img/c_front.png', globalBackId: 'g2'),
       ],
-      globalBackRef: '/img/global_back.png',
+      globalBacks: [
+        GlobalBack(id: 'g1', ref: '/img/red_back.png'),
+        GlobalBack(id: 'g2', ref: '/img/blue_back.png'),
+      ],
     );
 
     const serializer = ProjectSerializer();
@@ -30,10 +34,25 @@ void main() {
     expect(decoded.spacingMm, 3);
     expect(decoded.drawCutLines, isFalse);
     expect(decoded.jpegQuality, isNull);
-    expect(decoded.cards.length, 2);
+    expect(decoded.cards.length, 3);
     expect(decoded.cards[0].count, 2);
     expect(decoded.cards[1].backRef, '/img/b_back.png');
-    expect(decoded.globalBackRef, '/img/global_back.png');
+    expect(decoded.cards[2].globalBackId, 'g2');
+    expect(decoded.globalBacks.length, 2);
+    expect(decoded.globalBacks[1].ref, '/img/blue_back.png');
+    expect(decoded.backRefFor(decoded.cards[0]), '/img/red_back.png');
+    expect(decoded.backRefFor(decoded.cards[2]), '/img/blue_back.png');
+  });
+
+  test('legacy v1 single globalBack still loads', () {
+    const serializer = ProjectSerializer();
+    final decoded = serializer.decode(
+        '{"schemaVersion":1,"mode":"grid",'
+        '"cards":[{"id":"a","front":"/img/a.png"}],'
+        '"globalBack":"/img/old_back.png"}');
+    expect(decoded.globalBacks.length, 1);
+    expect(decoded.globalBacks.single.ref, '/img/old_back.png');
+    expect(decoded.backRefFor(decoded.cards.single), '/img/old_back.png');
   });
 
   test('freeform project round-trips', () {

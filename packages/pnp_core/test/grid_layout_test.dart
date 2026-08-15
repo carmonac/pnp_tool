@@ -5,7 +5,7 @@ PnpProject gridProject({
   SizeMm pageSize = const SizeMm(210, 297),
   SizeMm cardSize = const SizeMm(63.5, 88.9),
   List<CardItem> cards = const [],
-  String? globalBackRef,
+  List<GlobalBack> globalBacks = const [],
 }) =>
     PnpProject(
       name: 'test',
@@ -13,7 +13,7 @@ PnpProject gridProject({
       pageSize: pageSize,
       cardSize: cardSize,
       cards: cards,
-      globalBackRef: globalBackRef,
+      globalBacks: globalBacks,
     );
 
 List<CardItem> makeCards(int n, {String? back}) => [
@@ -111,9 +111,27 @@ void main() {
           const CardItem(id: 'a', frontRef: 'a.png', backRef: 'own.png'),
           const CardItem(id: 'b', frontRef: 'b.png'),
         ],
-        globalBackRef: 'global.png',
+        globalBacks: [const GlobalBack(id: 'g1', ref: 'global.png')],
       ));
       expect(plans[1].images.map((i) => i.imageRef), ['own.png', 'global.png']);
+    });
+
+    test('each card can pick its own global back', () {
+      final plans = planGrid(gridProject(
+        cards: [
+          // No choice: falls back to the first (default) global back.
+          const CardItem(id: 'a', frontRef: 'a.png'),
+          const CardItem(id: 'b', frontRef: 'b.png', globalBackId: 'g2'),
+          // Unknown id: falls back to the default too.
+          const CardItem(id: 'c', frontRef: 'c.png', globalBackId: 'nope'),
+        ],
+        globalBacks: [
+          const GlobalBack(id: 'g1', ref: 'red.png'),
+          const GlobalBack(id: 'g2', ref: 'blue.png'),
+        ],
+      ));
+      expect(plans[1].images.map((i) => i.imageRef),
+          ['red.png', 'blue.png', 'red.png']);
     });
 
     test('cards without any back are skipped on the back page', () {

@@ -52,7 +52,7 @@ void main() {
     controller.addCards([
       for (final n in ['1', '2', '3', '4']) p.join(input, '${n}_front.jpg'),
     ]);
-    controller.setGlobalBack(p.join(input, '1_back.jpg'));
+    controller.addGlobalBack(p.join(input, '1_back.jpg'));
     final c4 = controller.project.cards[3];
     controller.setCardBack(c4.id, p.join(input, '4_back.jpg'));
 
@@ -69,7 +69,7 @@ void main() {
     controller.addCards([
       for (final n in ['1', '2', '3', '4']) p.join(input, '${n}_front.jpg'),
     ]);
-    controller.setGlobalBack(p.join(input, '1_back.jpg'));
+    controller.addGlobalBack(p.join(input, '1_back.jpg'));
     final c4 = controller.project.cards[3];
     controller.setCardBack(c4.id, p.join(input, '4_back.jpg'));
     controller.selectPlan(1);

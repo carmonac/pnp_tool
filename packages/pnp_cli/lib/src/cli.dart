@@ -98,7 +98,9 @@ Future<int> run(List<String> arguments) async {
       drawCalibration: args.flag('calibration'),
       jpegQuality: jpegQuality,
       cards: discovery.cards,
-      globalBackRef: discovery.globalBackRef,
+      globalBacks: discovery.globalBackRef == null
+          ? const []
+          : [GlobalBack(id: 'global', ref: discovery.globalBackRef!)],
     );
     await _generate(project, outputPath);
     return 0;

@@ -16,8 +16,17 @@ enum FitMode {
   stretch,
 }
 
+/// A shared back image that any number of cards can point to. Cards without
+/// an explicit choice fall back to the project's first global back.
+class GlobalBack {
+  final String id;
+  final String ref;
+
+  const GlobalBack({required this.id, required this.ref});
+}
+
 class PnpProject {
-  static const currentSchemaVersion = 1;
+  static const currentSchemaVersion = 2;
 
   final String name;
   final ProjectMode mode;
@@ -35,7 +44,7 @@ class PnpProject {
   final double spacingMm;
   final double minMarginMm;
   final List<CardItem> cards;
-  final String? globalBackRef;
+  final List<GlobalBack> globalBacks;
 
   // Freeform mode.
   final List<FreePage> pages;
@@ -53,9 +62,28 @@ class PnpProject {
     this.spacingMm = 4.0,
     this.minMarginMm = 5.0,
     this.cards = const [],
-    this.globalBackRef,
+    this.globalBacks = const [],
     this.pages = const [FreePage()],
   });
+
+  /// The back image to print for [card]: its own back if set, else its chosen
+  /// global back, else the project's first global back, else none.
+  String? backRefFor(CardItem card) {
+    if (card.backRef != null) return card.backRef;
+    if (card.globalBackId != null) {
+      for (final back in globalBacks) {
+        if (back.id == card.globalBackId) return back.ref;
+      }
+    }
+    return globalBacks.isEmpty ? null : globalBacks.first.ref;
+  }
+
+  GlobalBack? globalBackById(String id) {
+    for (final back in globalBacks) {
+      if (back.id == id) return back;
+    }
+    return null;
+  }
 
   PnpProject copyWith({
     String? name,
@@ -69,7 +97,7 @@ class PnpProject {
     double? spacingMm,
     double? minMarginMm,
     List<CardItem>? cards,
-    Object? globalBackRef = _unset,
+    List<GlobalBack>? globalBacks,
     List<FreePage>? pages,
   }) =>
       PnpProject(
@@ -86,9 +114,7 @@ class PnpProject {
         spacingMm: spacingMm ?? this.spacingMm,
         minMarginMm: minMarginMm ?? this.minMarginMm,
         cards: cards ?? this.cards,
-        globalBackRef: globalBackRef == _unset
-            ? this.globalBackRef
-            : globalBackRef as String?,
+        globalBacks: globalBacks ?? this.globalBacks,
         pages: pages ?? this.pages,
       );
 

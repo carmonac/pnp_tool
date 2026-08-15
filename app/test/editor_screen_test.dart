@@ -44,7 +44,7 @@ void main() {
         p.join(input, '1_front.jpg'),
         p.join(input, '2_front.jpg'),
       ]);
-      controller.setGlobalBack(p.join(input, '1_back.jpg'));
+      controller.addGlobalBack(p.join(input, '1_back.jpg'));
     });
 
     tearDown(() => controller.dispose());
@@ -55,7 +55,10 @@ void main() {
       expect(find.text('${Strings.cards} (2)'), findsOneWidget);
       expect(find.text('1_front.jpg'), findsOneWidget);
       expect(find.text('2_front.jpg'), findsOneWidget);
-      expect(find.text(Strings.globalBack), findsWidgets);
+      expect(find.text(Strings.globalBacks), findsOneWidget);
+      // The applied back's filename appears in the global-backs list and in
+      // each card's subtitle.
+      expect(find.text('1_back.jpg'), findsWidgets);
       // Thumbnail strip: front and back page labels.
       expect(find.text('1'), findsOneWidget);
       expect(find.text('1b'), findsOneWidget);
@@ -76,7 +79,7 @@ void main() {
       await _pumpEditor(tester, controller);
 
       expect(controller.project.cards.length, 2);
-      controller.undo(); // undoes setGlobalBack
+      controller.undo(); // undoes addGlobalBack
       controller.undo(); // undoes addCards
       await tester.pump();
       expect(controller.project.cards, isEmpty);

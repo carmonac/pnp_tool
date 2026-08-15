@@ -28,8 +28,12 @@ abstract final class Strings {
   static const addCards = 'Añadir cartas';
   static const importFolder = 'Importar carpeta';
   static const globalBack = 'Trasera global';
-  static const setGlobalBack = 'Elegir trasera global…';
-  static const clearGlobalBack = 'Quitar trasera global';
+  static const globalBacks = 'Traseras globales';
+  static const addGlobalBack = 'Añadir trasera global…';
+  static const removeGlobalBack = 'Eliminar trasera global';
+  static const useGlobalBack = 'Usar trasera global';
+  static const useDefaultBack = 'Usar trasera por defecto';
+  static const defaultBackSuffix = '(por defecto)';
   static const setBack = 'Elegir trasera…';
   static const clearBack = 'Quitar trasera';
   static const removeCard = 'Eliminar carta';

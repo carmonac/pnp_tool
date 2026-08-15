@@ -53,7 +53,7 @@ class CardListSidebar extends StatelessWidget {
                 ],
               ),
             ),
-            _GlobalBackTile(controller: controller),
+            _GlobalBacksSection(controller: controller),
             const Divider(height: 1),
             Expanded(
               child: ReorderableListView.builder(
@@ -89,44 +89,58 @@ class CardListSidebar extends StatelessWidget {
   }
 }
 
-class _GlobalBackTile extends StatelessWidget {
+/// The project's shared backs: the first one is the default for every card
+/// without an explicit choice; cards can point to any of the others.
+class _GlobalBacksSection extends StatelessWidget {
   final ProjectController controller;
 
-  const _GlobalBackTile({required this.controller});
+  const _GlobalBacksSection({required this.controller});
 
   @override
   Widget build(BuildContext context) {
-    final globalBack = controller.project.globalBackRef;
-    return ListTile(
-      dense: true,
-      leading: globalBack == null
-          ? const Icon(Icons.flip_to_back_outlined)
-          : _thumbnail(globalBack),
-      title: Text(Strings.globalBack),
-      subtitle: globalBack == null
-          ? null
-          : Text(
-              globalBack.split(Platform.pathSeparator).last,
+    final backs = controller.project.globalBacks;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 16, right: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  Strings.globalBacks,
+                  style: Theme.of(context).textTheme.titleSmall,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              IconButton(
+                tooltip: Strings.addGlobalBack,
+                icon: const Icon(Icons.flip_to_back_outlined),
+                onPressed: () async {
+                  final file =
+                      await openFile(acceptedTypeGroups: [imageTypeGroup]);
+                  if (file != null) controller.addGlobalBack(file.path);
+                },
+              ),
+            ],
+          ),
+        ),
+        for (final (index, back) in backs.indexed)
+          ListTile(
+            dense: true,
+            leading: _thumbnail(back.ref),
+            title: Text(
+              back.ref.split(Platform.pathSeparator).last,
               overflow: TextOverflow.ellipsis,
             ),
-      trailing: PopupMenuButton<String>(
-        itemBuilder: (context) => [
-          const PopupMenuItem(value: 'set', child: Text(Strings.setGlobalBack)),
-          if (globalBack != null)
-            const PopupMenuItem(
-              value: 'clear',
-              child: Text(Strings.clearGlobalBack),
+            subtitle: index == 0 ? const Text(Strings.defaultBackSuffix) : null,
+            trailing: IconButton(
+              tooltip: Strings.removeGlobalBack,
+              icon: const Icon(Icons.close, size: 18),
+              onPressed: () => controller.removeGlobalBack(back.id),
             ),
-        ],
-        onSelected: (value) async {
-          if (value == 'set') {
-            final file = await openFile(acceptedTypeGroups: [imageTypeGroup]);
-            if (file != null) controller.setGlobalBack(file.path);
-          } else {
-            controller.setGlobalBack(null);
-          }
-        },
-      ),
+          ),
+      ],
     );
   }
 }
@@ -140,9 +154,19 @@ class _CardTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<ProjectController>();
-    final card = controller.project.cards.firstWhere((c) => c.id == cardId);
+    final project = controller.project;
+    final card = project.cards.firstWhere((c) => c.id == cardId);
     final hasOwnBack = card.backRef != null;
-    final hasAnyBack = hasOwnBack || controller.project.globalBackRef != null;
+    final appliedBack = project.backRefFor(card);
+
+    final String backLabel;
+    if (hasOwnBack) {
+      backLabel = Strings.back;
+    } else if (appliedBack != null) {
+      backLabel = appliedBack.split(Platform.pathSeparator).last;
+    } else {
+      backLabel = '—';
+    }
 
     return ReorderableDragStartListener(
       index: index,
@@ -156,20 +180,17 @@ class _CardTile extends StatelessWidget {
         subtitle: Row(
           children: [
             Icon(
-              hasAnyBack ? Icons.flip_to_back : Icons.report_outlined,
+              appliedBack != null
+                  ? Icons.flip_to_back
+                  : Icons.report_outlined,
               size: 14,
-              color: hasAnyBack
+              color: appliedBack != null
                   ? (hasOwnBack ? Colors.teal : Colors.grey)
                   : Colors.orange,
             ),
             const SizedBox(width: 4),
             Flexible(
-              child: Text(
-                hasOwnBack
-                    ? Strings.back
-                    : (hasAnyBack ? Strings.globalBack : '—'),
-                overflow: TextOverflow.ellipsis,
-              ),
+              child: Text(backLabel, overflow: TextOverflow.ellipsis),
             ),
             const Spacer(),
             if (card.count > 1) Text('×${card.count}'),
@@ -182,6 +203,22 @@ class _CardTile extends StatelessWidget {
               const PopupMenuItem(
                 value: 'clearBack',
                 child: Text(Strings.clearBack),
+              ),
+            // One entry per global back so each card can pick its own.
+            for (final back in project.globalBacks)
+              if (card.globalBackId != back.id)
+                PopupMenuItem(
+                  value: 'global:${back.id}',
+                  child: Text(
+                    '${Strings.useGlobalBack}: '
+                    '${back.ref.split(Platform.pathSeparator).last}',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+            if (card.globalBackId != null)
+              const PopupMenuItem(
+                value: 'globalDefault',
+                child: Text(Strings.useDefaultBack),
               ),
             const PopupMenuItem(value: 'count', child: Text(Strings.copies)),
             const PopupMenuItem(
@@ -200,12 +237,18 @@ class _CardTile extends StatelessWidget {
     ProjectController controller,
     String action,
   ) async {
+    if (action.startsWith('global:')) {
+      controller.setCardGlobalBack(cardId, action.substring('global:'.length));
+      return;
+    }
     switch (action) {
       case 'back':
         final file = await openFile(acceptedTypeGroups: [imageTypeGroup]);
         if (file != null) controller.setCardBack(cardId, file.path);
       case 'clearBack':
         controller.setCardBack(cardId, null);
+      case 'globalDefault':
+        controller.setCardGlobalBack(cardId, null);
       case 'remove':
         controller.removeCard(cardId);
       case 'count':

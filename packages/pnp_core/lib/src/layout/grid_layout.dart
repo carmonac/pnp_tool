@@ -118,9 +118,9 @@ List<PagePlan> planGrid(PnpProject project) {
       cutLines: cutLines,
       images: [
         for (var i = 0; i < pageCards.length; i++)
-          if ((pageCards[i].backRef ?? project.globalBackRef) != null)
+          if (project.backRefFor(pageCards[i]) != null)
             PlacedImage(
-              imageRef: (pageCards[i].backRef ?? project.globalBackRef)!,
+              imageRef: project.backRefFor(pageCards[i])!,
               rect: mirrorRect(cellRect(i), page.width),
               isBack: true,
             ),
