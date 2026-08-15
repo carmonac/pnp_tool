@@ -1,42 +1,100 @@
-# Print & Play Card Tool
+# pnp_tool
 
-## Download the latest version
-- [Linux](https://github.com/carmonac/pnp_tool/releases/download/v0.0.10/pnp_card_ubuntu-latest)
-- [Windows](https://github.com/carmonac/pnp_tool/releases/download/v0.0.10/pnp_card_windows-latest)
-- [macOS](https://github.com/carmonac/pnp_tool/releases/download/v0.0.10/pnp_card_macos-latest)
+Herramientas para preparar cartas *print and play*: coloca tus imágenes en
+páginas listas para imprimir a doble cara, con las traseras espejadas para que
+coincidan al voltear la hoja, marcas de corte, sangrado y marcas de
+calibración.
 
-### Mac users
+Incluye:
 
-it is possible you have to run the next command just immedietly after downloading the binary
-```
-chmod +x pnp_card_macos-latest
-xattr -d com.apple.quarantine ./pnp_card_macos-latest
-```
+- **PnP Studio** (`app/`): aplicación de escritorio (macOS, Windows, Linux)
+  con dos modos de proyecto:
+  - **Rejilla**: todas las cartas con el mismo tamaño (póker, bridge, tarot…
+    o personalizado) colocadas automáticamente en la página elegida (A4, A3,
+    Carta… o personalizada). Trasera por carta o trasera global compartida.
+  - **Forma libre**: imágenes de cualquier tamaño posicionadas a mano con
+    arrastre, snapping y guías; la página siguiente muestra las traseras
+    espejadas automáticamente.
+  - Previsualización en vivo de cada página (lo que ves es exactamente lo que
+    se imprime), proyectos guardables (`.pnp.json`) y exportación a PDF.
+- **pnp_tool CLI** (`packages/pnp_cli/`): generación de PDF desde la terminal.
+- **pnp_core** (`packages/pnp_core/`): motor de maquetación y generación de
+  PDF compartido por ambos.
 
-## Usage
+## Descargas
 
-To run the program, you need to provide two arguments:
+Binarios para cada sistema en la página de
+[releases](https://github.com/carmonac/pnp_tool/releases/latest):
 
-1. **Path to the image directory**: The directory where the card images are stored.
-2. **Output PDF name**: The name of the generated PDF file.
+- `pnp_studio_<os>.zip` — la aplicación de escritorio.
+- `pnp_tool_<os>` — la CLI.
 
-### Example Execution
+En macOS los binarios no están firmados: la primera vez, abre la app con clic
+derecho → Abrir, o ejecuta:
 
 ```bash
-./pnp_card /path/to/directory cards.pdf
+xattr -d com.apple.quarantine pnp_tool_macos
 ```
 
-## Directory Structure
+## CLI
 
-```
-/path/to/directory/
-├── 1_front.png
-├── 1_back.jpg
-├── 2_front.jpeg
-├── global_back.png
+```bash
+pnp_tool <directorio_de_imagenes> <salida.pdf>
 ```
 
-### Specific Scenarios
-1. If 1_front.png exists but 1_back.jpg is missing, the program will use global_back.png as the back image for that card.
-2. If a back image (name_back) exists without a corresponding front image (name_front), the program will throw an error indicating the issue.
+El directorio debe contener imágenes llamadas `<nombre>_front.<ext>` y
+opcionalmente `<nombre>_back.<ext>`. Las cartas sin trasera propia usan
+`global_back.<ext>` si existe.
 
+Opciones:
+
+```text
+--page       Tamaño de página: a4, a3, a5, letter, legal o AnchoxAlto en mm (por defecto a4)
+--card       Tamaño de carta: poker, bridge, tarot, miniUs, miniEuro, stdEuro, square o AnchoxAlto en mm (por defecto poker)
+--bleed      Sangrado en mm (por defecto 1.0)
+--spacing    Separación entre cartas en mm (por defecto 4.0)
+--jpeg-quality  Calidad JPEG 1-100, o "png" para sin pérdida (por defecto 90)
+--[no-]cut-lines     Marcas de corte (activadas por defecto)
+--[no-]calibration   Marcas de calibración y registro (activadas por defecto)
+--project    Renderizar un proyecto .pnp.json guardado desde PnP Studio
+```
+
+Ejemplos:
+
+```bash
+pnp_tool --page a3 --card tarot ./mis_cartas cartas.pdf
+```
+
+```bash
+pnp_tool --project mi_mazo.pnp.json mazo.pdf
+```
+
+## Impresión
+
+1. Imprime el PDF a doble cara con volteo por el **borde largo**.
+2. Comprueba con la regla de calibración de la primera página que la impresora
+   no ha escalado el documento (imprime al 100%, sin "ajustar a página").
+3. Corta siguiendo las marcas de los márgenes.
+
+## Desarrollo
+
+Es un workspace de Dart (SDK ≥ 3.9) con tres paquetes: `packages/pnp_core`,
+`packages/pnp_cli` y `app` (Flutter).
+
+```bash
+dart pub get
+dart test packages/pnp_core
+dart run packages/pnp_cli/bin/pnp_tool.dart example/input salida.pdf
+```
+
+```bash
+cd app && flutter run -d macos   # o -d windows / -d linux
+```
+
+Los PNG de `resources/` van embebidos en el código generado
+(`packages/pnp_core/lib/src/pdf/resources.g.dart`). Si cambias esos archivos,
+regenera con:
+
+```bash
+dart run packages/pnp_core/tool/generate_resources.dart
+```

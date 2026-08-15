@@ -1,0 +1,27 @@
+name: pnp_studio
+description: Desktop app for preparing print-and-play card sheets as duplex-ready PDFs.
+publish_to: none
+version: 2.0.0
+resolution: workspace
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  desktop_drop: ^0.6.1
+  file_selector: ^1.0.3
+  image: ^4.5.4
+  path: ^1.9.1
+  path_provider: ^2.1.4
+  pnp_core: any
+  provider: ^6.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

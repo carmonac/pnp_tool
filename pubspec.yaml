@@ -5,3 +5,4 @@ environment:
 workspace:
   - packages/pnp_core
   - packages/pnp_cli
+  - app
