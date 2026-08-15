@@ -1,356 +1,177 @@
-import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:path/path.dart' as path;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:pnp_tool/image_extender.dart';
 
-class Card {
-  final String frontPath;
-  final String backPath;
-  final int count;
+import '../image/bleed.dart';
+import '../io/image_resolver.dart';
+import '../layout/layout.dart';
+import '../models/geometry.dart';
+import '../models/project.dart';
+import 'resources.g.dart';
 
-  Card({
-    required this.frontPath,
-    required this.backPath,
-    required this.count,
-  });
+const _calibrSize = SizeMm(60.79, 7.62);
+const _calibrPosSize = SizeMm(3.56, 3.56);
+const _logoSize = SizeMm(5.86, 7.72);
+
+String generateJobId() {
+  const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  final random = Random.secure();
+  return List.generate(8, (_) => alphabet[random.nextInt(alphabet.length)])
+      .join();
 }
 
-class PnPGenerator {
-  // A4 size in mm: 210 x 297
-  static const pageWidth = 210.0;
-  static const pageHeight = 297.0;
+/// Renders a project's [PagePlan]s into a PDF document. Contains no layout
+/// math: everything it draws comes from the layout engine.
+class PdfGenerator {
+  final PnpProject project;
+  final ImageResolver resolver;
 
-  static const calibrHeight = 7.62;
-  static const calibrWidth = 60.79;
-  static const logoHeight = 7.72;
-  static const logoWidth = 5.86;
-  static const calibrPosHeight = 3.56;
-  static const calibrPosWidth = 3.56;
+  PdfGenerator({required this.project, required this.resolver});
 
-  // Margins in mm
-  static const marginLeft = 5.76;
-  static const marginRight = 5.76;
-  static const marginTop = 11.09;
-  static const marginBottom = 11.09;
-  static const cardSpacing = 4.06;
-  static const bleed = 1.02;
-
-  // Card dimensions
-  static const cardWidth = 63.5; // Standard card width in mm
-  static const cardHeight = 88.9; // Standard card height in mm
-
-  static const drawCutLines = true;
-
-  static late final Uint8List calibratingImage;
-  static late final Uint8List logoImage;
-  static late final Uint8List calibratingPosImage;
-
-  static final uuid = _generateJobId();
-
-  static String _generateJobId() {
-    const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    final random = Random.secure();
-    return List.generate(8, (_) => alphabet[random.nextInt(alphabet.length)])
-        .join();
-  }
-
-  static Future<void> generatePdf({
-    required String inputDir,
-    required String outputPath,
+  Future<Uint8List> generate({
+    void Function(int page, int totalPages)? onProgress,
   }) async {
-    calibratingImage = await File('resources/calibr.png').readAsBytes();
-    logoImage = await File('resources/logo.png').readAsBytes();
-    calibratingPosImage = await File('resources/calibr_pos.png').readAsBytes();
+    final plans = planProject(project);
+    final jobId = generateJobId();
+    final doc = pw.Document();
 
-    final pdf = pw.Document();
-    final cards = await _loadCards(inputDir);
-
-    const cardsPerPage = 9; // 3x3 grid
-    final totalPages = (cards.length / cardsPerPage).ceil();
-
-    for (var pageNum = 0; pageNum < totalPages; pageNum++) {
-      final pageCards =
-          cards.skip(pageNum * cardsPerPage).take(cardsPerPage).toList();
-
-      // Generate front page
-      pdf.addPage(await _createPage(
-        pageCards: pageCards,
-        pageNumber: pageNum + 1,
-        isBack: false,
-      ));
-
-      // Generate back page
-      pdf.addPage(await _createPage(
-        pageCards: pageCards,
-        pageNumber: pageNum + 1,
-        isBack: true,
+    // Process each distinct (image, printed size) pair once; shared backs are
+    // by far the common case.
+    final processed = <String, pw.MemoryImage>{};
+    Future<pw.MemoryImage> imageFor(PlacedImage placed) async {
+      final key = '${placed.imageRef}'
+          '@${placed.rect.width.toStringAsFixed(2)}'
+          'x${placed.rect.height.toStringAsFixed(2)}';
+      return processed[key] ??= pw.MemoryImage(prepareImage(
+        await resolver.readBytes(placed.imageRef),
+        targetSize: placed.rect.size,
+        bleedMm: project.bleedMm,
+        fitMode: project.fitMode,
+        jpegQuality: project.jpegQuality,
       ));
     }
 
-    final file = File(outputPath);
-    await file.writeAsBytes(await pdf.save());
+    for (var i = 0; i < plans.length; i++) {
+      final plan = plans[i];
+      final images = [
+        for (final placed in plan.images) (placed, await imageFor(placed)),
+      ];
+      doc.addPage(_buildPage(plan, images, jobId));
+      onProgress?.call(i + 1, plans.length);
+    }
+
+    return doc.save();
   }
 
-  static Future<pw.Page> _createPage({
-    required List<Card> pageCards,
-    required int pageNumber,
-    required bool isBack,
-  }) async {
-    final processedImages = await Future.wait(
-      pageCards.map((card) async {
-        final bytes =
-            await File(isBack ? card.backPath : card.frontPath).readAsBytes();
-        return await extendImageBorders(bytes, bleedMM: bleed);
-      }),
-    );
+  pw.Page _buildPage(
+    PagePlan plan,
+    List<(PlacedImage, pw.MemoryImage)> images,
+    String jobId,
+  ) {
+    final page = plan.pageSize;
+    final bleed = project.bleedMm;
 
     return pw.Page(
       pageFormat: PdfPageFormat(
-        pageWidth * PdfPageFormat.mm,
-        pageHeight * PdfPageFormat.mm,
+        page.width * PdfPageFormat.mm,
+        page.height * PdfPageFormat.mm,
       ),
-      build: (context) {
-        return pw.Stack(
-          children: [
-            if (drawCutLines) ..._drawCutLines(),
-            // id
+      build: (context) => pw.Stack(
+        children: [
+          for (final line in plan.cutLines)
+            pw.Positioned(
+              left: line.x * PdfPageFormat.mm,
+              top: line.y * PdfPageFormat.mm,
+              child: pw.Container(
+                width: line.width * PdfPageFormat.mm,
+                height: line.height * PdfPageFormat.mm,
+                color: PdfColors.black,
+              ),
+            ),
+
+          // Job id
+          pw.Positioned(
+            top: 4,
+            left: 20,
+            child: pw.Text(jobId, style: const pw.TextStyle(fontSize: 7)),
+          ),
+
+          // Calibration ruler on the first front page only
+          if (project.drawCalibration &&
+              plan.sheetNumber == 1 &&
+              !plan.isBackPage)
             pw.Positioned(
               top: 4,
-              left: 20,
-              child: pw.Text(
-                uuid,
-                style: pw.TextStyle(
-                  fontSize: 7,
-                ),
+              left: (page.width - _calibrSize.width) / 2 * PdfPageFormat.mm,
+              child: pw.Image(
+                pw.MemoryImage(calibrPng),
+                width: _calibrSize.width * PdfPageFormat.mm,
+                height: _calibrSize.height * PdfPageFormat.mm,
               ),
             ),
 
-            if (pageNumber == 1 && !isBack)
+          // Card images, enlarged by the bleed on every side
+          for (final (placed, memoryImage) in images)
+            pw.Positioned(
+              left: (placed.rect.x - bleed) * PdfPageFormat.mm,
+              top: (placed.rect.y - bleed) * PdfPageFormat.mm,
+              child: pw.Image(
+                memoryImage,
+                width: (placed.rect.width + 2 * bleed) * PdfPageFormat.mm,
+                height: (placed.rect.height + 2 * bleed) * PdfPageFormat.mm,
+              ),
+            ),
+
+          // Page label
+          pw.Positioned(
+            bottom: 8,
+            left: 0,
+            right: 0,
+            child: pw.Center(
+              child: pw.Text(plan.label,
+                  style: const pw.TextStyle(fontSize: 10)),
+            ),
+          ),
+
+          // Logo
+          pw.Positioned(
+            bottom: 4,
+            left: 20,
+            child: pw.Row(children: [
+              pw.Image(
+                pw.MemoryImage(logoPng),
+                width: _logoSize.width * PdfPageFormat.mm,
+                height: _logoSize.height * PdfPageFormat.mm,
+              ),
+              pw.Text('Cards Print & Play',
+                  style: const pw.TextStyle(fontSize: 7)),
+            ]),
+          ),
+
+          // Corner registration marks
+          if (project.drawCalibration)
+            for (final (x, y) in [
+              (0.0, 0.0),
+              (page.width - _calibrPosSize.width, 0.0),
+              (0.0, page.height - _calibrPosSize.height),
+              (
+                page.width - _calibrPosSize.width,
+                page.height - _calibrPosSize.height
+              ),
+            ])
               pw.Positioned(
-                top: 4,
-                left: (pageWidth - calibrWidth) / 2 * PdfPageFormat.mm,
+                left: x * PdfPageFormat.mm,
+                top: y * PdfPageFormat.mm,
                 child: pw.Image(
-                  pw.MemoryImage(calibratingImage),
-                  width: calibrWidth * PdfPageFormat.mm,
-                  height: calibrHeight * PdfPageFormat.mm,
+                  pw.MemoryImage(calibrPosPng),
+                  width: _calibrPosSize.width * PdfPageFormat.mm,
+                  height: _calibrPosSize.height * PdfPageFormat.mm,
                 ),
               ),
-
-            // Cards
-            ...List.generate(pageCards.length, (index) {
-              final row = index ~/ 3;
-              final col = isBack ? (2 - (index % 3)) : (index % 3);
-
-              final x = marginLeft + (col * (cardWidth + cardSpacing));
-              final y = marginTop + (row * (cardHeight + cardSpacing));
-
-              return pw.Positioned(
-                left: (x - bleed) * PdfPageFormat.mm,
-                top: (y - bleed) * PdfPageFormat.mm,
-                child: pw.Image(
-                  pw.MemoryImage(processedImages[index]),
-                  width: (cardWidth + (bleed * 2)) * PdfPageFormat.mm,
-                  height: (cardHeight + (bleed * 2)) * PdfPageFormat.mm,
-                ),
-              );
-            }),
-
-            // Page number
-            pw.Positioned(
-              bottom: marginBottom / 2 * PdfPageFormat.mm,
-              left: 0,
-              right: 0,
-              child: pw.Center(
-                child: pw.Text(
-                  isBack ? '${pageNumber}b' : pageNumber.toString(),
-                  style: pw.TextStyle(
-                    fontSize: 10,
-                  ),
-                ),
-              ),
-            ),
-
-            // Logo
-            pw.Positioned(
-              bottom: 4,
-              left: 20,
-              child: pw.Row(
-                children: [
-                  pw.Image(
-                    pw.MemoryImage(logoImage),
-                    width: logoWidth * PdfPageFormat.mm,
-                    height: logoHeight * PdfPageFormat.mm,
-                  ),
-                  pw.Text(
-                    'Cards Print & Play',
-                    style: pw.TextStyle(
-                      fontSize: 7,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Calibrating position
-            ...List.from(_getCornerImages(calibratingPosImage)),
-          ],
-        );
-      },
-    );
-  }
-
-  static Future<List<Card>> _loadCards(String inputDir) async {
-    final cards = <Card>[];
-    final directory = Directory(inputDir);
-
-    // Busca la ruta de global_back en cualquier formato de imagen
-    String? globalBackPath;
-    final potentialGlobalBack = directory.listSync().cast<File?>().firstWhere(
-          (file) =>
-              file != null &&
-              path.basenameWithoutExtension(file.path).toLowerCase() ==
-                  'global_back',
-          orElse: () => null,
-        );
-
-    if (potentialGlobalBack != null) {
-      globalBackPath = potentialGlobalBack.path;
-    }
-
-    final frontFiles = <String, String>{};
-    final backFiles = <String, String>{};
-
-    await for (final entry in directory.list()) {
-      if (entry is File) {
-        final fileName =
-            path.basenameWithoutExtension(entry.path).toLowerCase();
-        if (fileName.endsWith('_front')) {
-          frontFiles[fileName.replaceAll('_front', '')] = entry.path;
-        } else if (fileName.endsWith('_back')) {
-          backFiles[fileName.replaceAll('_back', '')] = entry.path;
-        }
-      }
-    }
-
-    for (final backName in backFiles.keys) {
-      if (!frontFiles.containsKey(backName)) {
-        throw Exception('font side not found for: ${backName}_back');
-      }
-    }
-
-    final sortedFrontKeys = frontFiles.keys.toList()..sort();
-
-    for (var i = 0; i < sortedFrontKeys.length; i++) {
-      final frontName = sortedFrontKeys[i];
-      final frontFilePath = frontFiles[frontName]!;
-      final backFilePath = backFiles.containsKey(frontName)
-          ? backFiles[frontName]!
-          : globalBackPath;
-
-      if (backFilePath == null) {
-        throw Exception(
-            'back side not found for: ${frontName}_front and global_back is not available.');
-      }
-
-      // Agrega la carta con el número correspondiente
-      cards.add(Card(
-        frontPath: frontFilePath,
-        backPath: backFilePath,
-        count: i + 1, // Enumera las cartas en orden
-      ));
-    }
-
-    return cards;
-  }
-
-  static List<pw.Widget> _drawCutLines() {
-    List<pw.Widget> cutLines = [];
-    // vertical lines
-    var x = marginLeft;
-    for (var i = 0; i < 6; i++) {
-      cutLines.add(_getCutLine(
-        width: 0.3527,
-        height: marginTop,
-        left: x,
-        top: 0.0,
-      ));
-      cutLines.add(_getCutLine(
-        width: 0.3527,
-        height: marginBottom,
-        left: x,
-        top: pageHeight - marginBottom,
-      ));
-
-      final next = i + 1;
-      x += (next % 2 != 0) ? cardWidth : cardSpacing;
-    }
-
-    // horizontal lines
-    var y = marginTop;
-    for (var i = 0; i < 6; i++) {
-      cutLines.add(_getCutLine(
-        width: marginLeft,
-        height: 0.42,
-        left: 0.0,
-        top: y,
-      ));
-      cutLines.add(_getCutLine(
-        width: marginRight,
-        height: 0.42,
-        left: pageWidth - marginRight,
-        top: y,
-      ));
-
-      final next = i + 1;
-      y += (next % 2 != 0) ? cardHeight : cardSpacing;
-    }
-
-    return cutLines;
-  }
-
-  static pw.Widget _getCutLine({
-    required double width,
-    required double height,
-    required double left,
-    required double top,
-  }) {
-    return pw.Positioned(
-      left: left * PdfPageFormat.mm,
-      top: top * PdfPageFormat.mm,
-      child: pw.Container(
-        width: width * PdfPageFormat.mm,
-        height: height * PdfPageFormat.mm,
-        color: PdfColors.black,
+        ],
       ),
     );
-  }
-
-  static List<pw.Widget> _getCornerImages(Uint8List image) {
-    final positions = [
-      // Top-left
-      (left: 0.0, top: 0.0),
-      // Top-right
-      (left: pageWidth - calibrPosWidth, top: 0.0),
-      // Bottom-left
-      (left: 0.0, top: pageHeight - calibrPosHeight),
-      // Bottom-right
-      (left: pageWidth - calibrPosWidth, top: pageHeight - calibrPosHeight),
-    ];
-
-    return positions
-        .map((pos) => pw.Positioned(
-              left: pos.left * PdfPageFormat.mm,
-              top: pos.top * PdfPageFormat.mm,
-              child: pw.Image(
-                pw.MemoryImage(image),
-                width: calibrPosWidth * PdfPageFormat.mm,
-                height: calibrPosHeight * PdfPageFormat.mm,
-              ),
-            ))
-        .toList();
   }
 }

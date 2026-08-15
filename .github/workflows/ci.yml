@@ -15,5 +15,6 @@ jobs:
         run: dart pub get
       - name: Analyze
         run: dart analyze --fatal-infos
-      - name: Test
+      - name: Test pnp_core
         run: dart test
+        working-directory: packages/pnp_core

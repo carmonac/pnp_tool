@@ -1,13 +1,7 @@
-import 'package:pnp_tool/pnp_tool.dart';
+import 'dart:io';
 
-void main(List<String> arguments) async {
-  if (arguments.length != 2) {
-    print('Usage: pnp_tool <inputDir> <outputPath>');
-    return;
-  }
+import 'package:pnp_cli/src/cli.dart' as cli;
 
-  final inputDir = arguments[0];
-  final outputPath = arguments[1];
-
-  await PnPGenerator.generatePdf(inputDir: inputDir, outputPath: outputPath);
+Future<void> main(List<String> arguments) async {
+  exitCode = await cli.run(arguments);
 }

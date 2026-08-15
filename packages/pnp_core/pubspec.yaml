@@ -1,15 +1,17 @@
-name: pnp_tool
-description: Prepare print-and-play card sheets as duplex-ready PDFs.
+name: pnp_core
+description: Core layout engine and PDF generation for print-and-play card sheets.
 version: 2.0.0
 repository: https://github.com/carmonac/pnp_tool
+publish_to: none
+resolution: workspace
 
 environment:
   sdk: ^3.9.0
 
 dependencies:
+  image: ^4.5.4
   path: ^1.9.1
   pdf: ^3.11.3
-  image: ^4.5.4
 
 dev_dependencies:
   lints: ^6.0.0
