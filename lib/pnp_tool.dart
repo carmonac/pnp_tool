@@ -1,7 +1,7 @@
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:nanoid2/nanoid2.dart';
 import 'package:path/path.dart' as path;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -49,7 +49,14 @@ class PnPGenerator {
   static late final Uint8List logoImage;
   static late final Uint8List calibratingPosImage;
 
-  static final uuid = nanoid();
+  static final uuid = _generateJobId();
+
+  static String _generateJobId() {
+    const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    final random = Random.secure();
+    return List.generate(8, (_) => alphabet[random.nextInt(alphabet.length)])
+        .join();
+  }
 
   static Future<void> generatePdf({
     required String inputDir,
@@ -258,11 +265,6 @@ class PnPGenerator {
     }
 
     return cards;
-  }
-
-  static int _getCardCount(String name) {
-    final match = RegExp(r'^(\d+)\s+').firstMatch(name);
-    return match != null ? int.parse(match.group(1)!) : 1;
   }
 
   static List<pw.Widget> _drawCutLines() {
