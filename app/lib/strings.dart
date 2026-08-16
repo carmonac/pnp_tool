@@ -34,6 +34,11 @@ abstract final class Strings {
   static const useGlobalBack = 'Usar trasera global';
   static const useDefaultBack = 'Usar trasera por defecto';
   static const defaultBackSuffix = '(por defecto)';
+  static const selectedCount = 'seleccionadas';
+  static const assignGlobalBack = 'Asignar trasera global';
+  static const removeSelected = 'Eliminar seleccionadas';
+  static const selectAll = 'Seleccionar todas';
+  static const clearSelection = 'Quitar selección';
   static const setBack = 'Elegir trasera…';
   static const clearBack = 'Quitar trasera';
   static const removeCard = 'Eliminar carta';

@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:pnp_core/pnp_core.dart';
 import 'package:provider/provider.dart';
 
 import '../state/project_controller.dart';
@@ -12,8 +14,8 @@ const imageTypeGroup = XTypeGroup(
   extensions: ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'],
 );
 
-/// Grid-mode sidebar: card list with thumbnails, per-card back management,
-/// copy counts, reorder, and global back controls.
+/// Grid-mode sidebar: card list with thumbnails, multi-selection, per-card
+/// back management, copy counts, reorder, and global back controls.
 class CardListSidebar extends StatelessWidget {
   const CardListSidebar({super.key});
 
@@ -21,6 +23,7 @@ class CardListSidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = context.watch<ProjectController>();
     final cards = controller.project.cards;
+    final selection = controller.selectedCardIds;
 
     return Material(
       color: Theme.of(context).colorScheme.surfaceContainerLow,
@@ -55,17 +58,25 @@ class CardListSidebar extends StatelessWidget {
             ),
             _GlobalBacksSection(controller: controller),
             const Divider(height: 1),
+            if (selection.isNotEmpty)
+              _SelectionBar(controller: controller, selection: selection),
             Expanded(
               child: ReorderableListView.builder(
                 buildDefaultDragHandles: false,
                 itemCount: cards.length,
                 onReorderItem: controller.reorderCards,
+                // The dragged proxy is mounted in the overlay, outside our
+                // Material; give it one so ListTile can render there.
+                proxyDecorator: (child, index, animation) =>
+                    Material(elevation: 4, child: child),
                 itemBuilder: (context, index) {
                   final card = cards[index];
                   return _CardTile(
                     key: ValueKey(card.id),
                     index: index,
-                    cardId: card.id,
+                    card: card,
+                    controller: controller,
+                    selected: selection.contains(card.id),
                   );
                 },
               ),
@@ -86,6 +97,81 @@ class CardListSidebar extends StatelessWidget {
     if (dir != null) {
       await controller.importFolder(dir);
     }
+  }
+}
+
+/// Bulk actions for the current card selection.
+class _SelectionBar extends StatelessWidget {
+  final ProjectController controller;
+  final Set<String> selection;
+
+  const _SelectionBar({required this.controller, required this.selection});
+
+  @override
+  Widget build(BuildContext context) {
+    final backs = controller.project.globalBacks;
+    return ColoredBox(
+      color: Theme.of(context).colorScheme.secondaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.only(left: 12, right: 4),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                '${selection.length} ${Strings.selectedCount}',
+                style: Theme.of(context).textTheme.labelMedium,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            PopupMenuButton<String>(
+              tooltip: Strings.assignGlobalBack,
+              icon: const Icon(Icons.flip_to_back, size: 18),
+              itemBuilder: (context) => [
+                for (final back in backs)
+                  PopupMenuItem(
+                    value: 'global:${back.id}',
+                    child: Text(
+                      '${Strings.useGlobalBack}: '
+                      '${back.ref.split(Platform.pathSeparator).last}',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                const PopupMenuItem(
+                  value: 'globalDefault',
+                  child: Text(Strings.useDefaultBack),
+                ),
+                const PopupMenuDivider(),
+                const PopupMenuItem(
+                  value: 'selectAll',
+                  child: Text(Strings.selectAll),
+                ),
+                const PopupMenuItem(
+                  value: 'removeSelected',
+                  child: Text(Strings.removeSelected),
+                ),
+              ],
+              onSelected: (value) {
+                if (value.startsWith('global:')) {
+                  controller.setCardsGlobalBack(
+                      selection, value.substring('global:'.length));
+                } else if (value == 'globalDefault') {
+                  controller.setCardsGlobalBack(selection, null);
+                } else if (value == 'selectAll') {
+                  controller.selectAllCards();
+                } else if (value == 'removeSelected') {
+                  controller.removeCards(selection);
+                }
+              },
+            ),
+            IconButton(
+              tooltip: Strings.clearSelection,
+              icon: const Icon(Icons.close, size: 18),
+              onPressed: controller.clearCardSelection,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -145,17 +231,26 @@ class _GlobalBacksSection extends StatelessWidget {
   }
 }
 
+/// One card row. Deliberately Provider-free: everything arrives via
+/// constructor so the tile still builds inside the drag overlay, which sits
+/// outside the editor's provider scope.
 class _CardTile extends StatelessWidget {
   final int index;
-  final String cardId;
+  final CardItem card;
+  final ProjectController controller;
+  final bool selected;
 
-  const _CardTile({super.key, required this.index, required this.cardId});
+  const _CardTile({
+    super.key,
+    required this.index,
+    required this.card,
+    required this.controller,
+    required this.selected,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<ProjectController>();
     final project = controller.project;
-    final card = project.cards.firstWhere((c) => c.id == cardId);
     final hasOwnBack = card.backRef != null;
     final appliedBack = project.backRefFor(card);
 
@@ -172,6 +267,15 @@ class _CardTile extends StatelessWidget {
       index: index,
       child: ListTile(
         dense: true,
+        selected: selected,
+        onTap: () {
+          final keys = HardwareKeyboard.instance;
+          controller.selectCard(
+            card.id,
+            toggle: keys.isMetaPressed || keys.isControlPressed,
+            range: keys.isShiftPressed,
+          );
+        },
         leading: _thumbnail(card.frontRef),
         title: Text(
           card.frontRef.split(Platform.pathSeparator).last,
@@ -180,9 +284,7 @@ class _CardTile extends StatelessWidget {
         subtitle: Row(
           children: [
             Icon(
-              appliedBack != null
-                  ? Icons.flip_to_back
-                  : Icons.report_outlined,
+              appliedBack != null ? Icons.flip_to_back : Icons.report_outlined,
               size: 14,
               color: appliedBack != null
                   ? (hasOwnBack ? Colors.teal : Colors.grey)
@@ -226,39 +328,34 @@ class _CardTile extends StatelessWidget {
               child: Text(Strings.removeCard),
             ),
           ],
-          onSelected: (value) => _onAction(context, controller, value),
+          onSelected: (value) => _onAction(context, value),
         ),
       ),
     );
   }
 
-  Future<void> _onAction(
-    BuildContext context,
-    ProjectController controller,
-    String action,
-  ) async {
+  Future<void> _onAction(BuildContext context, String action) async {
     if (action.startsWith('global:')) {
-      controller.setCardGlobalBack(cardId, action.substring('global:'.length));
+      controller.setCardGlobalBack(card.id, action.substring('global:'.length));
       return;
     }
     switch (action) {
       case 'back':
         final file = await openFile(acceptedTypeGroups: [imageTypeGroup]);
-        if (file != null) controller.setCardBack(cardId, file.path);
+        if (file != null) controller.setCardBack(card.id, file.path);
       case 'clearBack':
-        controller.setCardBack(cardId, null);
+        controller.setCardBack(card.id, null);
       case 'globalDefault':
-        controller.setCardGlobalBack(cardId, null);
+        controller.setCardGlobalBack(card.id, null);
       case 'remove':
-        controller.removeCard(cardId);
+        controller.removeCard(card.id);
       case 'count':
         if (!context.mounted) return;
-        final card = controller.project.cards.firstWhere((c) => c.id == cardId);
         final result = await showDialog<int>(
           context: context,
           builder: (context) => _CountDialog(initial: card.count),
         );
-        if (result != null) controller.setCardCount(cardId, result);
+        if (result != null) controller.setCardCount(card.id, result);
     }
   }
 }

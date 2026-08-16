@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:pnp_core/pnp_core.dart';
@@ -99,6 +100,71 @@ void main() {
       addTearDown(empty.dispose);
       await _pumpEditor(tester, empty);
       expect(find.text(Strings.emptyProjectHint), findsOneWidget);
+    });
+
+    testWidgets('clicking cards selects them and shows the selection bar',
+        (tester) async {
+      controller.addGlobalBack(p.join(input, '4_back.jpg'));
+      await _pumpEditor(tester, controller);
+
+      await tester.tap(find.text('1_front.jpg'));
+      await tester.pump();
+      expect(controller.selectedCardIds.length, 1);
+      expect(find.text('1 ${Strings.selectedCount}'), findsOneWidget);
+
+      // Shift-click the second card extends the selection.
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.tap(find.text('2_front.jpg'));
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.pump();
+      expect(controller.selectedCardIds.length, 2);
+      expect(find.text('2 ${Strings.selectedCount}'), findsOneWidget);
+    });
+
+    testWidgets('bulk-assigning a global back updates every selected card',
+        (tester) async {
+      controller.addGlobalBack(p.join(input, '4_back.jpg'));
+      final secondBackId = controller.project.globalBacks[1].id;
+      await _pumpEditor(tester, controller);
+
+      controller.selectAllCards();
+      await tester.pump();
+
+      controller.setCardsGlobalBack(
+          controller.selectedCardIds, secondBackId);
+      await tester.pump();
+
+      for (final card in controller.project.cards) {
+        expect(card.globalBackId, secondBackId);
+        expect(controller.project.backRefFor(card), endsWith('4_back.jpg'));
+      }
+      // A single undo reverts the whole bulk assignment.
+      controller.undo();
+      for (final card in controller.project.cards) {
+        expect(card.globalBackId, isNull);
+      }
+    });
+
+    testWidgets('drag-reordering a card does not throw', (tester) async {
+      await _pumpEditor(tester, controller);
+
+      final start = tester.getCenter(find.text('1_front.jpg'));
+      final gesture = await tester.startGesture(start);
+      await tester.pump(const Duration(milliseconds: 300));
+      // Drag well past the second tile in small steps so the reorder logic
+      // sees the displacement.
+      for (var i = 1; i <= 10; i++) {
+        await gesture.moveBy(const Offset(0, 12));
+        await tester.pump(const Duration(milliseconds: 30));
+      }
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      // The original bug: the dragged proxy threw (no Material/Provider in
+      // the overlay). The reorder must complete without exceptions.
+      expect(tester.takeException(), isNull);
+      expect(controller.project.cards.first.frontRef,
+          endsWith('2_front.jpg'));
     });
   });
 

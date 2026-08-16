@@ -10,6 +10,7 @@ import 'package:path/path.dart' as p;
 import 'package:pnp_core/pnp_core.dart';
 import 'package:pnp_studio/screens/editor_screen.dart';
 import 'package:pnp_studio/state/project_controller.dart';
+import 'package:pnp_studio/theme.dart';
 
 String _repoRoot() {
   var dir = Directory.current;
@@ -27,7 +28,9 @@ Future<void> _capture(
 
   await tester.runAsync(() async {
     await tester.pumpWidget(
-        MaterialApp(home: EditorScreen(controller: controller)));
+        MaterialApp(
+            theme: desktopTheme(Brightness.light),
+            home: EditorScreen(controller: controller)));
     // Let PreviewImageCache finish decoding thumbnails.
     await Future<void>.delayed(const Duration(milliseconds: 2500));
   });

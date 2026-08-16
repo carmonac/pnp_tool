@@ -6,6 +6,7 @@ import 'screens/editor_screen.dart';
 import 'screens/home_screen.dart';
 import 'state/project_controller.dart';
 import 'strings.dart';
+import 'theme.dart';
 
 void main(List<String> args) {
   // Optional: open a .pnp.json project passed on the command line.
@@ -28,15 +29,8 @@ class PnpStudioApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: Strings.appTitle,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.teal,
-          brightness: Brightness.dark,
-        ),
-      ),
+      theme: desktopTheme(Brightness.light),
+      darkTheme: desktopTheme(Brightness.dark),
       debugShowCheckedModeBanner: false,
       home: initialController == null
           ? const HomeScreen()

@@ -61,6 +61,75 @@ class ProjectController extends ChangeNotifier {
     notifyListeners();
   }
 
+  // --- Card selection (grid mode, UI state only — not undoable) ----------
+
+  final Set<String> _selectedCardIds = {};
+  String? _lastSelectedCardId;
+
+  Set<String> get selectedCardIds => Set.unmodifiable(_selectedCardIds);
+
+  /// Click selection with desktop semantics: plain click selects only the
+  /// card, [toggle] (cmd-click) toggles it, [range] (shift-click) extends
+  /// from the last clicked card.
+  void selectCard(String cardId, {bool toggle = false, bool range = false}) {
+    if (range && _lastSelectedCardId != null) {
+      final ids = _project.cards.map((c) => c.id).toList();
+      final from = ids.indexOf(_lastSelectedCardId!);
+      final to = ids.indexOf(cardId);
+      if (from != -1 && to != -1) {
+        final low = from < to ? from : to;
+        final high = from < to ? to : from;
+        _selectedCardIds.addAll(ids.sublist(low, high + 1));
+        notifyListeners();
+        return;
+      }
+    }
+    if (toggle) {
+      if (!_selectedCardIds.remove(cardId)) _selectedCardIds.add(cardId);
+    } else {
+      _selectedCardIds
+        ..clear()
+        ..add(cardId);
+    }
+    _lastSelectedCardId = cardId;
+    notifyListeners();
+  }
+
+  void clearCardSelection() {
+    if (_selectedCardIds.isEmpty) return;
+    _selectedCardIds.clear();
+    _lastSelectedCardId = null;
+    notifyListeners();
+  }
+
+  void selectAllCards() {
+    _selectedCardIds
+      ..clear()
+      ..addAll(_project.cards.map((c) => c.id));
+    notifyListeners();
+  }
+
+  /// Points every card in [cardIds] at a global back (null = default/first),
+  /// clearing their per-card backs, in a single undo step.
+  void setCardsGlobalBack(Set<String> cardIds, String? globalBackId) {
+    if (cardIds.isEmpty) return;
+    _mutate((project) => project.copyWith(cards: [
+          for (final card in project.cards)
+            cardIds.contains(card.id)
+                ? card.copyWith(backRef: null, globalBackId: globalBackId)
+                : card,
+        ]));
+  }
+
+  /// Removes every card in [cardIds] in a single undo step.
+  void removeCards(Set<String> cardIds) {
+    if (cardIds.isEmpty) return;
+    _mutate((project) => project.copyWith(
+        cards:
+            project.cards.where((c) => !cardIds.contains(c.id)).toList()));
+    _selectedCardIds.removeAll(cardIds);
+  }
+
   // --- Mutations ---------------------------------------------------------
 
   static const _serializer = ProjectSerializer();
@@ -175,6 +244,7 @@ class ProjectController extends ChangeNotifier {
   void removeCard(String cardId) {
     _mutate((project) => project.copyWith(
         cards: project.cards.where((c) => c.id != cardId).toList()));
+    _selectedCardIds.remove(cardId);
   }
 
   /// [newIndex] must already account for the removal at [oldIndex]
