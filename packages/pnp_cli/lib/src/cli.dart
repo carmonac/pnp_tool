@@ -19,7 +19,8 @@ Options:''';
 
 ArgParser buildParser() => ArgParser()
   ..addOption('project',
-      help: 'Render a saved .pnp.json project instead of scanning a directory.')
+      help: 'Render a saved project (.pnp.json or a .pnp bundle) instead of '
+          'scanning a directory.')
   ..addOption('page',
       defaultsTo: 'a4',
       help: 'Page size: a preset (a4, a3, a5, letter, legal) or WxH in mm.')
@@ -62,8 +63,19 @@ Future<int> run(List<String> arguments) async {
         stderr.writeln('Expected exactly one output path with --project.');
         return 64;
       }
-      final project = ProjectSerializer(baseDir: p.dirname(projectPath))
-          .decode(await File(projectPath).readAsString());
+      final PnpProject project;
+      if (p.extension(projectPath).toLowerCase() ==
+          '.${ProjectBundle.fileExtension}') {
+        final extractDir =
+            await Directory.systemTemp.createTemp('pnp_bundle');
+        project = await ProjectBundle.decode(
+          await File(projectPath).readAsBytes(),
+          extractDir: extractDir.path,
+        );
+      } else {
+        project = ProjectSerializer(baseDir: p.dirname(projectPath))
+            .decode(await File(projectPath).readAsString());
+      }
       await _generate(project, args.rest.single);
       return 0;
     }

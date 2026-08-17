@@ -78,6 +78,11 @@ class _EditorScaffold extends StatelessWidget {
               icon: const Icon(Icons.save_outlined),
               onPressed: () => _save(context, controller),
             ),
+            IconButton(
+              tooltip: Strings.shareBundle,
+              icon: const Icon(Icons.ios_share),
+              onPressed: () => _shareBundle(context, controller),
+            ),
             const SizedBox(width: 8),
             FilledButton.icon(
               icon: const Icon(Icons.picture_as_pdf_outlined),
@@ -131,7 +136,7 @@ class _EditorScaffold extends StatelessWidget {
 
   Future<void> _save(
       BuildContext context, ProjectController controller) async {
-    if (controller.filePath == null) {
+    if (!controller.hasSaveTarget) {
       final location = await getSaveLocation(
         suggestedName: '${controller.project.name}.pnp.json',
         acceptedTypeGroups: const [
@@ -143,8 +148,36 @@ class _EditorScaffold extends StatelessWidget {
     } else {
       await controller.save();
     }
-    final path = controller.filePath;
+    final path = controller.filePath ?? controller.bundlePath;
     if (path != null) await RecentProjects().add(path);
+  }
+
+  /// Exports a self-contained .pnp bundle (project + images) for sharing.
+  Future<void> _shareBundle(
+      BuildContext context, ProjectController controller) async {
+    final location = await getSaveLocation(
+      suggestedName: '${controller.project.name}.pnp',
+      acceptedTypeGroups: const [
+        XTypeGroup(label: 'Proyecto PnP empaquetado', extensions: ['pnp']),
+      ],
+    );
+    if (location == null) return;
+    try {
+      await controller.exportBundle(location.path);
+      await RecentProjects().add(location.path);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('${Strings.bundleExported}: ${location.path}'),
+        ));
+      }
+    } on Exception catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('${Strings.error}: $e'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ));
+      }
+    }
   }
 
   Future<bool> _confirmDiscard(

@@ -66,7 +66,7 @@ class _HomeScreenState extends State<HomeScreen> {
               _BigButton(
                 icon: Icons.folder_open_outlined,
                 title: Strings.openProject,
-                subtitle: '.pnp.json',
+                subtitle: '.pnp.json · .pnp',
                 onTap: _openProject,
               ),
               if (_recentPaths.isNotEmpty) ...[
@@ -108,7 +108,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _openProject() async {
     final file = await openFile(
       acceptedTypeGroups: const [
-        XTypeGroup(label: 'Proyecto PnP', extensions: ['json']),
+        XTypeGroup(label: 'Proyecto PnP', extensions: ['json', 'pnp']),
       ],
     );
     if (file != null) await _openPath(file.path);
@@ -116,7 +116,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _openPath(String path) async {
     try {
-      final controller = ProjectController.load(path);
+      final controller = path.toLowerCase().endsWith('.pnp')
+          ? await ProjectController.loadBundle(path)
+          : ProjectController.load(path);
       await _recents.add(path);
       await _openEditor(controller);
     } on Exception catch (e) {

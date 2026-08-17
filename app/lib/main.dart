@@ -8,13 +8,21 @@ import 'state/project_controller.dart';
 import 'strings.dart';
 import 'theme.dart';
 
-void main(List<String> args) {
-  // Optional: open a .pnp.json project passed on the command line.
+Future<void> main(List<String> args) async {
+  // Optional: open a project (.pnp.json or .pnp bundle) passed on the
+  // command line.
   ProjectController? initial;
-  final path = args.where((a) => a.endsWith('.json')).firstOrNull;
+  final path = args
+      .where((a) => a.endsWith('.json') || a.toLowerCase().endsWith('.pnp'))
+      .firstOrNull;
   if (path != null && File(path).existsSync()) {
     try {
-      initial = ProjectController.load(path);
+      if (path.toLowerCase().endsWith('.pnp')) {
+        WidgetsFlutterBinding.ensureInitialized();
+        initial = await ProjectController.loadBundle(path);
+      } else {
+        initial = ProjectController.load(path);
+      }
     } catch (_) {}
   }
   runApp(PnpStudioApp(initialController: initial));

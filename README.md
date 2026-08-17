@@ -17,6 +17,9 @@ Incluye:
     espejadas automáticamente.
   - Previsualización en vivo de cada página (lo que ves es exactamente lo que
     se imprime), proyectos guardables (`.pnp.json`) y exportación a PDF.
+  - **Compartir proyectos**: exporta un archivo `.pnp` autocontenido (un ZIP
+    con el proyecto y todas sus imágenes) que cualquiera puede abrir desde
+    "Abrir proyecto" sin depender de rutas locales.
 - **pnp_tool CLI** (`packages/pnp_cli/`): generación de PDF desde la terminal.
 - **pnp_core** (`packages/pnp_core/`): motor de maquetación y generación de
   PDF compartido por ambos.
@@ -56,7 +59,7 @@ Opciones:
 --jpeg-quality  Calidad JPEG 1-100, o "png" para sin pérdida (por defecto 90)
 --[no-]cut-lines     Marcas de corte (activadas por defecto)
 --[no-]calibration   Marcas de calibración y registro (activadas por defecto)
---project    Renderizar un proyecto .pnp.json guardado desde PnP Studio
+--project    Renderizar un proyecto guardado desde PnP Studio (.pnp.json o paquete .pnp)
 ```
 
 Ejemplos:

@@ -63,6 +63,8 @@ abstract final class Strings {
   static const save = 'Guardar';
   static const saveAs = 'Guardar como…';
   static const exportPdf = 'Exportar PDF';
+  static const shareBundle = 'Compartir proyecto (.pnp)…';
+  static const bundleExported = 'Proyecto .pnp guardado';
   static const undo = 'Deshacer';
   static const redo = 'Rehacer';
   static const settings = 'Ajustes del proyecto';

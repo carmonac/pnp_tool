@@ -9,6 +9,7 @@ environment:
   sdk: ^3.9.0
 
 dependencies:
+  archive: ^4.0.5
   image: ^4.5.4
   path: ^1.9.1
   pdf: ^3.11.3

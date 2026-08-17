@@ -4,6 +4,7 @@ library;
 export 'src/image/bleed.dart';
 export 'src/io/card_discovery.dart';
 export 'src/io/image_resolver.dart';
+export 'src/io/project_bundle.dart';
 export 'src/io/project_serializer.dart';
 export 'src/layout/layout.dart';
 export 'src/models/card_item.dart';

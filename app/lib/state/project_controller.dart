@@ -4,6 +4,7 @@ import 'dart:isolate';
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:pnp_core/pnp_core.dart';
 
 /// Wraps the immutable [PnpProject] with mutation methods, dirty tracking,
@@ -11,6 +12,7 @@ import 'package:pnp_core/pnp_core.dart';
 class ProjectController extends ChangeNotifier {
   PnpProject _project;
   String? _filePath;
+  String? _bundlePath;
   bool _dirty = false;
 
   final List<String> _undoStack = [];
@@ -28,8 +30,39 @@ class ProjectController extends ChangeNotifier {
     return ProjectController(project).._filePath = filePath;
   }
 
+  /// Opens a `.pnp` bundle: images are extracted next to the app's support
+  /// data ([extractDir] overrides the location, e.g. in tests) and the
+  /// project keeps pointing at the bundle so saving re-exports it.
+  static Future<ProjectController> loadBundle(
+    String bundlePath, {
+    String? extractDir,
+  }) async {
+    final String dir;
+    if (extractDir != null) {
+      dir = extractDir;
+    } else {
+      final support = await getApplicationSupportDirectory();
+      dir = p.join(
+        support.path,
+        'bundles',
+        '${p.basenameWithoutExtension(bundlePath)}_'
+            '${DateTime.now().millisecondsSinceEpoch}',
+      );
+    }
+    await Directory(dir).create(recursive: true);
+    final project = await ProjectBundle.decode(
+      await File(bundlePath).readAsBytes(),
+      extractDir: dir,
+    );
+    return ProjectController(project).._bundlePath = bundlePath;
+  }
+
   PnpProject get project => _project;
   String? get filePath => _filePath;
+  String? get bundlePath => _bundlePath;
+
+  /// True when the project is backed by a saved file of either kind.
+  bool get hasSaveTarget => _filePath != null || _bundlePath != null;
   bool get dirty => _dirty;
   bool get canUndo => _undoStack.isNotEmpty;
   bool get canRedo => _redoStack.isNotEmpty;
@@ -444,18 +477,33 @@ class ProjectController extends ChangeNotifier {
 
   Future<void> save() async {
     final path = _filePath;
-    if (path == null) {
-      throw StateError('No file path; use saveAs');
+    if (path != null) {
+      final serializer = ProjectSerializer(baseDir: p.dirname(path));
+      await File(path).writeAsString(serializer.encode(_project));
+      _dirty = false;
+      notifyListeners();
+      return;
     }
-    final serializer = ProjectSerializer(baseDir: p.dirname(path));
-    await File(path).writeAsString(serializer.encode(_project));
-    _dirty = false;
-    notifyListeners();
+    if (_bundlePath != null) {
+      await exportBundle(_bundlePath!);
+      return;
+    }
+    throw StateError('No file path; use saveAs');
   }
 
   Future<void> saveAs(String path) async {
     _filePath = path;
     await save();
+  }
+
+  /// Writes a self-contained `.pnp` bundle (project + images) to [path] and
+  /// makes it this project's save target.
+  Future<void> exportBundle(String path) async {
+    final bytes = await ProjectBundle.encode(_project);
+    await File(path).writeAsBytes(bytes);
+    _bundlePath = path;
+    _dirty = false;
+    notifyListeners();
   }
 
   /// Generates the PDF in a background isolate so the UI stays responsive.
