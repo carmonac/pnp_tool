@@ -63,18 +63,15 @@ class PagePlanPainter extends CustomPainter {
   final PagePlan plan;
   final FitMode fitMode;
   final PreviewImageCache imageCache;
-  final String? highlightedImageId;
 
-  /// Item id per placed image, aligned with [plan.images]; used to highlight
-  /// the selected freeform item. Null for grid previews.
-  final List<String?>? imageItemIds;
+  /// Source id (card/item) to outline as selected.
+  final String? highlightedImageId;
 
   PagePlanPainter({
     required this.plan,
     required this.fitMode,
     required this.imageCache,
     this.highlightedImageId,
-    this.imageItemIds,
   }) : super(repaint: imageCache);
 
   @override
@@ -102,8 +99,7 @@ class PagePlanPainter extends CustomPainter {
         _drawFitted(canvas, image, rect);
       }
 
-      final itemId = imageItemIds == null ? null : imageItemIds![i];
-      if (itemId != null && itemId == highlightedImageId) {
+      if (placed.sourceId != null && placed.sourceId == highlightedImageId) {
         canvas.drawRect(
           rect,
           Paint()
@@ -150,13 +146,14 @@ class PagePlanPainter extends CustomPainter {
 }
 
 /// A page rendered at its aspect ratio, e.g. for thumbnails or the main
-/// preview.
+/// preview. [onImageTap] reports the tapped placed image's source id (the
+/// card/item it came from), or null for taps on empty page area.
 class PagePreview extends StatelessWidget {
   final PagePlan plan;
   final FitMode fitMode;
   final PreviewImageCache imageCache;
   final String? highlightedImageId;
-  final List<String?>? imageItemIds;
+  final void Function(String? sourceId)? onImageTap;
 
   const PagePreview({
     super.key,
@@ -164,21 +161,42 @@ class PagePreview extends StatelessWidget {
     required this.fitMode,
     required this.imageCache,
     this.highlightedImageId,
-    this.imageItemIds,
+    this.onImageTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return AspectRatio(
       aspectRatio: plan.pageSize.width / plan.pageSize.height,
-      child: CustomPaint(
-        painter: PagePlanPainter(
-          plan: plan,
-          fitMode: fitMode,
-          imageCache: imageCache,
-          highlightedImageId: highlightedImageId,
-          imageItemIds: imageItemIds,
-        ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final paint = CustomPaint(
+            painter: PagePlanPainter(
+              plan: plan,
+              fitMode: fitMode,
+              imageCache: imageCache,
+              highlightedImageId: highlightedImageId,
+            ),
+          );
+          if (onImageTap == null) return paint;
+          return GestureDetector(
+            onTapUp: (details) {
+              final scale = fitPageScale(plan.pageSize, constraints.biggest);
+              final x = details.localPosition.dx / scale;
+              final y = details.localPosition.dy / scale;
+              // Topmost image wins.
+              for (final placed in plan.images.reversed) {
+                final r = placed.rect;
+                if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
+                  onImageTap!(placed.sourceId);
+                  return;
+                }
+              }
+              onImageTap!(null);
+            },
+            child: paint,
+          );
+        },
       ),
     );
   }

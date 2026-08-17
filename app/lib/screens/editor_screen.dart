@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../state/project_controller.dart';
 import '../state/recent_projects.dart';
 import '../strings.dart';
+import '../widgets/card_detail_dialog.dart';
 import '../widgets/card_list_sidebar.dart';
 import '../widgets/export_dialog.dart';
 import '../widgets/freeform_canvas.dart';
@@ -212,6 +213,12 @@ class _GridMainView extends StatelessWidget {
             plan: plan,
             fitMode: controller.project.fitMode,
             imageCache: context.read<PreviewImageCache>(),
+            // Clicking a card on the page opens its detail modal.
+            onImageTap: (sourceId) {
+              if (sourceId != null) {
+                showCardDetailDialog(context, controller, sourceId);
+              }
+            },
           ),
         ),
       ),

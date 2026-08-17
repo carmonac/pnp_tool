@@ -35,7 +35,12 @@ List<PagePlan> planFreeform(PnpProject project) {
           project.drawCutLines ? _cropMarks(frontRects) : const <RectMm>[],
       images: [
         for (final item in items)
-          PlacedImage(imageRef: item.frontRef, rect: item.rect, isBack: false),
+          PlacedImage(
+            imageRef: item.frontRef,
+            rect: item.rect,
+            isBack: false,
+            sourceId: item.id,
+          ),
       ],
     ));
 
@@ -53,6 +58,7 @@ List<PagePlan> planFreeform(PnpProject project) {
               imageRef: item.backRef!,
               rect: mirrorRect(item.rect, page.width),
               isBack: true,
+              sourceId: item.id,
             ),
       ],
     ));

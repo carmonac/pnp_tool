@@ -258,11 +258,14 @@ class ProjectController extends ChangeNotifier {
     });
   }
 
-  void addGlobalBack(String path) {
+  /// Adds a global back and returns its id.
+  String addGlobalBack(String path) {
+    final id = _newId('global');
     _mutate((project) => project.copyWith(globalBacks: [
           ...project.globalBacks,
-          GlobalBack(id: _newId('global'), ref: path),
+          GlobalBack(id: id, ref: path),
         ]));
+    return id;
   }
 
   /// Removes a global back; cards that pointed to it fall back to the

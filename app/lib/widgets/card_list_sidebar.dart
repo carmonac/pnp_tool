@@ -8,6 +8,8 @@ import 'package:provider/provider.dart';
 
 import '../state/project_controller.dart';
 import '../strings.dart';
+import 'card_detail_dialog.dart';
+import 'image_drop_dialog.dart';
 
 const imageTypeGroup = XTypeGroup(
   label: 'Imágenes',
@@ -203,9 +205,12 @@ class _GlobalBacksSection extends StatelessWidget {
                 tooltip: Strings.addGlobalBack,
                 icon: const Icon(Icons.flip_to_back_outlined),
                 onPressed: () async {
-                  final file =
-                      await openFile(acceptedTypeGroups: [imageTypeGroup]);
-                  if (file != null) controller.addGlobalBack(file.path);
+                  final paths = await showImageDropDialog(context,
+                      title: Strings.addGlobalBack);
+                  if (paths == null) return;
+                  for (final path in paths) {
+                    controller.addGlobalBack(path);
+                  }
                 },
               ),
             ],
@@ -300,6 +305,7 @@ class _CardTile extends StatelessWidget {
         ),
         trailing: PopupMenuButton<String>(
           itemBuilder: (context) => [
+            const PopupMenuItem(value: 'detail', child: Text(Strings.detail)),
             const PopupMenuItem(value: 'back', child: Text(Strings.setBack)),
             if (hasOwnBack)
               const PopupMenuItem(
@@ -340,6 +346,9 @@ class _CardTile extends StatelessWidget {
       return;
     }
     switch (action) {
+      case 'detail':
+        if (!context.mounted) return;
+        await showCardDetailDialog(context, controller, card.id);
       case 'back':
         final file = await openFile(acceptedTypeGroups: [imageTypeGroup]);
         if (file != null) controller.setCardBack(card.id, file.path);

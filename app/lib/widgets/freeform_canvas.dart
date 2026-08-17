@@ -101,7 +101,6 @@ class _FreeformCanvasState extends State<FreeformCanvas> {
                       fitMode: controller.project.fitMode,
                       imageCache: context.read<PreviewImageCache>(),
                       highlightedImageId: controller.selectedItemId,
-                      imageItemIds: [for (final item in items) item.id],
                     ),
                   ),
                 ),

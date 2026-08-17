@@ -104,6 +104,7 @@ List<PagePlan> planGrid(PnpProject project) {
             imageRef: pageCards[i].frontRef,
             rect: cellRect(i),
             isBack: false,
+            sourceId: pageCards[i].id,
           ),
       ],
     ));
@@ -123,6 +124,7 @@ List<PagePlan> planGrid(PnpProject project) {
               imageRef: project.backRefFor(pageCards[i])!,
               rect: mirrorRect(cellRect(i), page.width),
               isBack: true,
+              sourceId: pageCards[i].id,
             ),
       ],
     ));

@@ -7,10 +7,14 @@ class PlacedImage {
   final RectMm rect;
   final bool isBack;
 
+  /// Id of the card/item this image came from, for hit-testing in editors.
+  final String? sourceId;
+
   const PlacedImage({
     required this.imageRef,
     required this.rect,
     required this.isBack,
+    this.sourceId,
   });
 }
 

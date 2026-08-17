@@ -35,6 +35,14 @@ abstract final class Strings {
   static const useDefaultBack = 'Usar trasera por defecto';
   static const defaultBackSuffix = '(por defecto)';
   static const selectedCount = 'seleccionadas';
+  static const detail = 'Detalle';
+  static const selectGlobalBackCheck = 'Seleccionar trasera global';
+  static const addNewGlobalBack = 'Añadir nueva carta global';
+  static const dropImageHint = 'Suelta una imagen aquí o haz clic para elegirla';
+  static const dropImagesHint =
+      'Suelta imágenes aquí o haz clic para elegirlas';
+  static const noBack = 'Sin trasera';
+  static const close = 'Cerrar';
   static const assignGlobalBack = 'Asignar trasera global';
   static const removeSelected = 'Eliminar seleccionadas';
   static const selectAll = 'Seleccionar todas';

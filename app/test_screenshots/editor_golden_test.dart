@@ -11,6 +11,7 @@ import 'package:pnp_core/pnp_core.dart';
 import 'package:pnp_studio/screens/editor_screen.dart';
 import 'package:pnp_studio/state/project_controller.dart';
 import 'package:pnp_studio/theme.dart';
+import 'package:pnp_studio/widgets/card_detail_dialog.dart';
 
 String _repoRoot() {
   var dir = Directory.current;
@@ -78,6 +79,38 @@ void main() {
     controller.selectPlan(1);
 
     await _capture(tester, controller, 'grid_editor_back');
+  });
+
+  testWidgets('card detail dialog render', (tester) async {
+    final controller = ProjectController(const PnpProject(
+      name: 'demo rejilla',
+      mode: ProjectMode.grid,
+      pageSize: SizeMm(210, 297),
+    ));
+    addTearDown(controller.dispose);
+    controller.addCards([p.join(input, '1_front.jpg')]);
+    controller.addGlobalBack(p.join(input, '1_back.jpg'));
+    controller.addGlobalBack(p.join(input, '4_back.jpg'));
+    final cardId = controller.project.cards.first.id;
+
+    tester.view.physicalSize = const Size(900, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.runAsync(() async {
+      await tester.pumpWidget(MaterialApp(
+        theme: desktopTheme(Brightness.light),
+        home: Scaffold(
+          body: CardDetailDialog(controller: controller, cardId: cardId),
+        ),
+      ));
+      await Future<void>.delayed(const Duration(milliseconds: 1500));
+    });
+    await tester.pumpAndSettle();
+
+    await expectLater(
+      find.byType(CardDetailDialog),
+      matchesGoldenFile('goldens/card_detail_dialog.png'),
+    );
   });
 
   testWidgets('freeform editor render', (tester) async {

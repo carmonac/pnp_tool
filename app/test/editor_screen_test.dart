@@ -8,6 +8,9 @@ import 'package:pnp_core/pnp_core.dart';
 import 'package:pnp_studio/screens/editor_screen.dart';
 import 'package:pnp_studio/state/project_controller.dart';
 import 'package:pnp_studio/strings.dart';
+import 'package:pnp_studio/widgets/card_detail_dialog.dart';
+import 'package:pnp_studio/widgets/image_drop_dialog.dart';
+import 'package:pnp_studio/widgets/page_preview.dart';
 
 String _repoRoot() {
   var dir = Directory.current;
@@ -143,6 +146,61 @@ void main() {
       for (final card in controller.project.cards) {
         expect(card.globalBackId, isNull);
       }
+    });
+
+    testWidgets('card detail modal opens from the context menu and assigns '
+        'a global back via radio buttons', (tester) async {
+      controller.addGlobalBack(p.join(input, '4_back.jpg'));
+      final secondBackId = controller.project.globalBacks[1].id;
+      await _pumpEditor(tester, controller);
+
+      // Open the first card's context menu and choose Detalle.
+      await tester.tap(find.byType(PopupMenuButton<String>).first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(Strings.detail));
+      await tester.pumpAndSettle();
+
+      // Modal shows the filename and the global-back picker (the card uses
+      // a global back, so the checkbox starts checked).
+      expect(find.byType(CardDetailDialog), findsOneWidget);
+      expect(find.text(Strings.selectGlobalBackCheck), findsOneWidget);
+      expect(find.text(Strings.addNewGlobalBack), findsOneWidget);
+
+      // Pick the second global back via its radio row.
+      await tester.tap(find.byWidgetPredicate((w) =>
+          w is RadioListTile<String> && w.value == secondBackId));
+      await tester.pump();
+      expect(controller.project.cards.first.globalBackId, secondBackId);
+
+      // Selecting "add new" reveals the drop zone.
+      await tester.tap(find.text(Strings.addNewGlobalBack));
+      await tester.pump();
+      expect(find.byType(ImageDropZone), findsOneWidget);
+    });
+
+    testWidgets('clicking a card in the central preview opens its detail',
+        (tester) async {
+      await _pumpEditor(tester, controller);
+
+      // Tap the center of the first card's cell inside the main preview
+      // (the largest PagePreview on screen).
+      final previews = find.byType(PagePreview);
+      Rect biggest = Rect.zero;
+      for (final element in previews.evaluate()) {
+        final rect = tester.getRect(find.byWidget(element.widget));
+        if (rect.width > biggest.width) biggest = rect;
+      }
+      final plan = controller.plans.first;
+      final scale = biggest.height / plan.pageSize.height;
+      final cardRect = plan.images.first.rect;
+      await tester.tapAt(Offset(
+        biggest.left + (cardRect.left + cardRect.width / 2) * scale,
+        biggest.top + (cardRect.top + cardRect.height / 2) * scale,
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CardDetailDialog), findsOneWidget);
+      expect(find.text('1_front.jpg'), findsWidgets);
     });
 
     testWidgets('drag-reordering a card does not throw', (tester) async {
