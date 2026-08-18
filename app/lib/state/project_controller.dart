@@ -98,8 +98,22 @@ class ProjectController extends ChangeNotifier {
 
   final Set<String> _selectedCardIds = {};
   String? _lastSelectedCardId;
+  bool _selectionMode = false;
 
   Set<String> get selectedCardIds => Set.unmodifiable(_selectedCardIds);
+
+  /// When true the card list shows checkboxes and taps toggle selection.
+  bool get selectionMode => _selectionMode;
+
+  void setSelectionMode(bool enabled) {
+    if (_selectionMode == enabled) return;
+    _selectionMode = enabled;
+    if (!enabled) {
+      _selectedCardIds.clear();
+      _lastSelectedCardId = null;
+    }
+    notifyListeners();
+  }
 
   /// Click selection with desktop semantics: plain click selects only the
   /// card, [toggle] (cmd-click) toggles it, [range] (shift-click) extends

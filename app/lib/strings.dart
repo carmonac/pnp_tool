@@ -47,6 +47,7 @@ abstract final class Strings {
   static const removeSelected = 'Eliminar seleccionadas';
   static const selectAll = 'Seleccionar todas';
   static const clearSelection = 'Quitar selección';
+  static const selectMode = 'Seleccionar';
   static const setBack = 'Elegir trasera…';
   static const clearBack = 'Quitar trasera';
   static const removeCard = 'Eliminar carta';

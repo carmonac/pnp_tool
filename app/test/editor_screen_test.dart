@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:pnp_core/pnp_core.dart';
@@ -105,23 +104,38 @@ void main() {
       expect(find.text(Strings.emptyProjectHint), findsOneWidget);
     });
 
-    testWidgets('clicking cards selects them and shows the selection bar',
+    testWidgets('selection mode shows checkboxes and toggles cards',
         (tester) async {
-      controller.addGlobalBack(p.join(input, '4_back.jpg'));
       await _pumpEditor(tester, controller);
 
-      await tester.tap(find.text('1_front.jpg'));
+      // No checkboxes until selection mode is on.
+      expect(find.byType(Checkbox), findsNothing);
+      await tester.tap(find.byTooltip(Strings.selectMode));
+      await tester.pump();
+      expect(find.byType(Checkbox), findsNWidgets(2));
+      expect(find.text('0 ${Strings.selectedCount}'), findsOneWidget);
+
+      await tester.tap(find.byType(Checkbox).first);
       await tester.pump();
       expect(controller.selectedCardIds.length, 1);
       expect(find.text('1 ${Strings.selectedCount}'), findsOneWidget);
 
-      // Shift-click the second card extends the selection.
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
-      await tester.tap(find.text('2_front.jpg'));
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.tap(find.byType(Checkbox).last);
       await tester.pump();
       expect(controller.selectedCardIds.length, 2);
       expect(find.text('2 ${Strings.selectedCount}'), findsOneWidget);
+
+      // Tapping a checked checkbox unchecks it.
+      await tester.tap(find.byType(Checkbox).first);
+      await tester.pump();
+      expect(controller.selectedCardIds.length, 1);
+
+      // Leaving selection mode clears everything.
+      await tester.tap(find.byTooltip(Strings.clearSelection));
+      await tester.pump();
+      expect(controller.selectionMode, isFalse);
+      expect(controller.selectedCardIds, isEmpty);
+      expect(find.byType(Checkbox), findsNothing);
     });
 
     testWidgets('bulk-assigning a global back updates every selected card',

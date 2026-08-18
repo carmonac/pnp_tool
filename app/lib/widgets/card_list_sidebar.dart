@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:pnp_core/pnp_core.dart';
 import 'package:provider/provider.dart';
 
@@ -46,6 +45,13 @@ class CardListSidebar extends StatelessWidget {
                     ),
                   ),
                   IconButton(
+                    tooltip: Strings.selectMode,
+                    isSelected: controller.selectionMode,
+                    icon: const Icon(Icons.checklist),
+                    onPressed: () =>
+                        controller.setSelectionMode(!controller.selectionMode),
+                  ),
+                  IconButton(
                     tooltip: Strings.addCards,
                     icon: const Icon(Icons.add_photo_alternate_outlined),
                     onPressed: () => _pickCards(controller),
@@ -60,7 +66,7 @@ class CardListSidebar extends StatelessWidget {
             ),
             _GlobalBacksSection(controller: controller),
             const Divider(height: 1),
-            if (selection.isNotEmpty)
+            if (controller.selectionMode)
               _SelectionBar(controller: controller, selection: selection),
             Expanded(
               child: ReorderableListView.builder(
@@ -79,6 +85,7 @@ class CardListSidebar extends StatelessWidget {
                     card: card,
                     controller: controller,
                     selected: selection.contains(card.id),
+                    selectionMode: controller.selectionMode,
                   );
                 },
               ),
@@ -168,7 +175,7 @@ class _SelectionBar extends StatelessWidget {
             IconButton(
               tooltip: Strings.clearSelection,
               icon: const Icon(Icons.close, size: 18),
-              onPressed: controller.clearCardSelection,
+              onPressed: () => controller.setSelectionMode(false),
             ),
           ],
         ),
@@ -244,6 +251,7 @@ class _CardTile extends StatelessWidget {
   final CardItem card;
   final ProjectController controller;
   final bool selected;
+  final bool selectionMode;
 
   const _CardTile({
     super.key,
@@ -251,6 +259,7 @@ class _CardTile extends StatelessWidget {
     required this.card,
     required this.controller,
     required this.selected,
+    required this.selectionMode,
   });
 
   @override
@@ -273,15 +282,21 @@ class _CardTile extends StatelessWidget {
       child: ListTile(
         dense: true,
         selected: selected,
-        onTap: () {
-          final keys = HardwareKeyboard.instance;
-          controller.selectCard(
-            card.id,
-            toggle: keys.isMetaPressed || keys.isControlPressed,
-            range: keys.isShiftPressed,
-          );
-        },
-        leading: _thumbnail(card.frontRef),
+        onTap: selectionMode
+            ? () => controller.selectCard(card.id, toggle: true)
+            : null,
+        leading: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (selectionMode)
+              Checkbox(
+                value: selected,
+                onChanged: (_) =>
+                    controller.selectCard(card.id, toggle: true),
+              ),
+            _thumbnail(card.frontRef),
+          ],
+        ),
         title: Text(
           card.frontRef.split(Platform.pathSeparator).last,
           overflow: TextOverflow.ellipsis,

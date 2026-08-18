@@ -100,7 +100,13 @@ class _EditorScaffold extends StatelessWidget {
             const VerticalDivider(width: 1),
             Expanded(
               child: DropTarget(
-                onDragDone: (details) => _onDrop(controller, details),
+                onDragDone: (details) {
+                  // Overlapping DropTargets all receive the event: ignore
+                  // drops aimed at an open dialog (e.g. the card detail
+                  // modal's back pane) so they don't also add front cards.
+                  if (!(ModalRoute.of(context)?.isCurrent ?? true)) return;
+                  _onDrop(controller, details);
+                },
                 child: ColoredBox(
                   color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   child: isGrid
