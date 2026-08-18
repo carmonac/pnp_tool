@@ -182,6 +182,17 @@ class _CardDetailDialogState extends State<CardDetailDialog> {
             ),
           ),
           actions: [
+            TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.error,
+              ),
+              onPressed: () {
+                // Undoable via Cmd+Z, so no confirmation dialog.
+                controller.removeCard(card.id);
+                Navigator.pop(context);
+              },
+              child: const Text(Strings.removeCard),
+            ),
             FilledButton(
               onPressed: () => Navigator.pop(context),
               child: const Text(Strings.close),

@@ -192,6 +192,27 @@ void main() {
       expect(find.byType(ImageDropZone), findsOneWidget);
     });
 
+    testWidgets('detail modal can remove the card', (tester) async {
+      await _pumpEditor(tester, controller);
+
+      await tester.tap(find.byType(PopupMenuButton<String>).first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(Strings.detail));
+      await tester.pumpAndSettle();
+      expect(find.byType(CardDetailDialog), findsOneWidget);
+
+      await tester.tap(find.text(Strings.removeCard));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CardDetailDialog), findsNothing);
+      expect(controller.project.cards.length, 1);
+      expect(controller.project.cards.single.frontRef,
+          endsWith('2_front.jpg'));
+      // Removal is one undo step.
+      controller.undo();
+      expect(controller.project.cards.length, 2);
+    });
+
     testWidgets('clicking a card in the central preview opens its detail',
         (tester) async {
       await _pumpEditor(tester, controller);
