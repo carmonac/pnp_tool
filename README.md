@@ -1,3 +1,6 @@
+## New project is being created to be compatible with PNP Tool Windows version, written in .NET 11. https://github.com/carmonac/pnp_tool_multi_platform
+
+
 # pnp_tool
 
 Herramientas para preparar cartas *print and play*: coloca tus imágenes en
